@@ -1,0 +1,2821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvoiceIntel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080808; --bg2:#111; --bg3:#181818; --bg4:#202020; --bg5:#2a2a2a;
+  --border:#222; --border2:#2e2e2e; --border3:#3a3a3a;
+  --text:#ececec; --text2:#888; --text3:#444; --text4:#333;
+  --accent:#e8c547; --accent2:#c4a030; --accent3:rgba(232,197,71,0.12);
+  --red:#e05252; --red2:rgba(224,82,82,0.12);
+  --green:#52c97a; --green2:rgba(82,201,122,0.12);
+  --blue:#52a8e0; --blue2:rgba(82,168,224,0.12);
+  --orange:#e08a52; --orange2:rgba(224,138,82,0.12);
+  --purple:#b478dc; --purple2:rgba(180,120,220,0.12);
+  --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif; --display:'Bebas Neue',sans-serif;
+  --r:5px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh;overflow-x:hidden;}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:230px;min-width:230px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:20;transition:width .2s;}
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-word{font-family:var(--display);font-size:26px;letter-spacing:3px;color:var(--accent);line-height:1;}
+.logo-tag{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-top:3px;}
+.nav{flex:1;padding:10px 0;overflow-y:auto;}
+.nav-sec{font-family:var(--mono);font-size:9px;color:var(--text4);letter-spacing:2px;padding:14px 20px 5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .12s;border-left:2px solid transparent;position:relative;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--bg3);color:var(--accent);border-left-color:var(--accent);}
+.nav-icon{width:18px;text-align:center;font-size:15px;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:10px;}
+.sidebar-foot{padding:14px 16px;border-top:1px solid var(--border);}
+.upload-btn{width:100%;background:var(--accent);color:#000;border:none;border-radius:var(--r);padding:11px;font-family:var(--display);font-size:17px;letter-spacing:2px;cursor:pointer;transition:background .15s;}
+.upload-btn:hover{background:var(--accent2);}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;gap:12px;flex-shrink:0;}
+.page-title{font-family:var(--display);font-size:26px;letter-spacing:3px;color:var(--text);white-space:nowrap;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.search-wrap{position:relative;}
+.search-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:7px 12px 7px 32px;color:var(--text);font-family:var(--mono);font-size:12px;width:240px;outline:none;transition:border-color .15s;}
+.search-box:focus{border-color:var(--accent);}
+.search-box::placeholder{color:var(--text3);}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
+.topbar-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:7px 12px;border-radius:var(--r);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.topbar-btn:hover{border-color:var(--accent);color:var(--accent);}
+.flag-btn{background:var(--red2);border:1px solid var(--red);color:var(--red);padding:7px 12px;border-radius:var(--r);font-family:var(--mono);font-size:11px;cursor:pointer;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.65;}}
+
+/* ── CONTENT ── */
+.content{padding:22px 24px;flex:1;}
+
+/* ── STATS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;cursor:default;transition:border-color .15s;}
+.stat-card:hover{border-color:var(--border3);}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.y::after{background:var(--accent);}
+.stat-card.g::after{background:var(--green);}
+.stat-card.r::after{background:var(--red);}
+.stat-card.b::after{background:var(--blue);}
+.stat-card.o::after{background:var(--orange);}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;}
+.stat-val{font-family:var(--display);font-size:30px;letter-spacing:1px;line-height:1;}
+.stat-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px;}
+.stat-delta{font-family:var(--mono);font-size:10px;margin-top:3px;}
+.up{color:var(--red);} .dn{color:var(--green);} .neu{color:var(--text3);}
+
+/* ── SECTION HDR ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.sec-title{font-family:var(--display);font-size:20px;letter-spacing:2px;}
+.sec-actions{display:flex;gap:8px;}
+
+/* ── BUTTONS ── */
+.btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 12px;border-radius:var(--r);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.on{background:var(--accent);color:#000;border-color:var(--accent);}
+.btn-primary{background:var(--accent);color:#000;border:none;border-radius:var(--r);padding:9px 22px;font-family:var(--display);font-size:17px;letter-spacing:2px;cursor:pointer;transition:all .15s;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-ghost{background:none;border:1px solid var(--border2);color:var(--text3);padding:5px 10px;border-radius:3px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;}
+.btn-ghost:hover{border-color:var(--border3);color:var(--text2);}
+.btn-danger:hover{border-color:var(--red)!important;color:var(--red)!important;}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.filter-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+select.fsel{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 10px;border-radius:var(--r);font-family:var(--mono);font-size:11px;outline:none;cursor:pointer;transition:border-color .15s;}
+select.fsel:focus{border-color:var(--accent);}
+input.fdate{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:6px 10px;border-radius:var(--r);font-family:var(--mono);font-size:11px;outline:none;transition:border-color .15s;}
+input.fdate:focus{border-color:var(--accent);}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--bg3);border-bottom:1px solid var(--border);}
+th{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:9px 13px;text-align:left;font-weight:400;cursor:pointer;user-select:none;white-space:nowrap;}
+th:hover{color:var(--accent);}
+td{padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr{cursor:default;transition:background .1s;}
+tbody tr:hover td{background:var(--bg3);}
+.mono{font-family:var(--mono);}
+.price{font-family:var(--mono);font-size:13px;}
+
+/* ── CHIPS ── */
+.chip{border-radius:3px;padding:2px 8px;font-family:var(--mono);font-size:10px;font-weight:500;white-space:nowrap;display:inline-block;}
+.chip-vendor{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);}
+.chip-meat{background:var(--red2);color:var(--red);}
+.chip-produce{background:var(--green2);color:var(--green);}
+.chip-dairy{background:var(--blue2);color:var(--blue);}
+.chip-dry{background:var(--accent3);color:var(--accent);}
+.chip-seafood{background:var(--orange2);color:var(--orange);}
+.chip-beverage{background:var(--purple2);color:var(--purple);}
+.chip-other{background:var(--bg4);color:var(--text2);}
+.status-approved{background:var(--green2);color:var(--green);border:1px solid rgba(82,201,122,.25);}
+.status-pending{background:var(--accent3);color:var(--accent);border:1px solid rgba(232,197,71,.25);}
+.status-flagged{background:var(--red2);color:var(--red);border:1px solid rgba(224,82,82,.25);}
+
+/* ── FLAGS ── */
+.flags-panel{background:var(--bg2);border:1px solid var(--red);border-radius:var(--r);padding:16px;margin-bottom:20px;}
+.flags-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.flags-title{font-family:var(--display);font-size:20px;letter-spacing:2px;color:var(--red);}
+.flag-count{background:var(--red);color:#fff;border-radius:3px;padding:2px 8px;font-family:var(--mono);font-size:10px;}
+.flag-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:4px;margin-bottom:8px;border-left:3px solid var(--red);}
+.flag-item:last-child{margin-bottom:0;}
+.flag-body{flex:1;}
+.flag-main{font-size:13px;margin-bottom:2px;}
+.flag-detail{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.flag-acts{display:flex;gap:6px;flex-shrink:0;}
+
+/* ── BAR CHART ── */
+.bar-chart{display:flex;flex-direction:column;gap:7px;}
+.bar-row{display:flex;align-items:center;gap:8px;}
+.bar-lbl{font-family:var(--mono);font-size:10px;color:var(--text2);width:90px;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:18px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;display:flex;align-items:center;padding-left:6px;transition:width 1s cubic-bezier(.23,1,.32,1);}
+.bar-fill-lbl{font-family:var(--mono);font-size:9px;color:rgba(0,0,0,.65);white-space:nowrap;}
+.bar-val{font-family:var(--mono);font-size:10px;color:var(--text2);width:65px;flex-shrink:0;text-align:right;}
+
+/* ── CHART GRID ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;}
+.chart-title{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+
+/* ── SPARKLINE ── */
+svg.spark{width:100%;height:90px;}
+
+/* ── PAGE VIEWS ── */
+.page{display:none;} .page.active{display:block;}
+
+/* ── QUERY ENGINE ── */
+.query-engine{background:var(--bg2);border:1px solid var(--accent);border-radius:var(--r);padding:18px;margin-bottom:22px;}
+.qe-title{font-family:var(--display);font-size:20px;letter-spacing:2px;color:var(--accent);margin-bottom:14px;}
+.qe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
+.qe-group{display:flex;flex-direction:column;gap:4px;}
+.qe-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.qe-input{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:8px 10px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;transition:border-color .15s;}
+.qe-input:focus{border-color:var(--accent);}
+.qe-multi{display:flex;flex-wrap:wrap;gap:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:6px 8px;min-height:36px;cursor:pointer;align-content:flex-start;}
+.qe-tag{background:var(--accent3);border:1px solid rgba(232,197,71,.3);color:var(--accent);border-radius:3px;padding:2px 8px;font-family:var(--mono);font-size:10px;display:flex;align-items:center;gap:4px;}
+.qe-tag-remove{cursor:pointer;opacity:.6;} .qe-tag-remove:hover{opacity:1;}
+.qe-actions{display:flex;align-items:center;gap:10px;}
+.qe-run{background:var(--accent);color:#000;border:none;border-radius:var(--r);padding:9px 24px;font-family:var(--display);font-size:18px;letter-spacing:2px;cursor:pointer;transition:all .15s;}
+.qe-run:hover{background:var(--accent2);}
+.qe-clear{background:none;border:1px solid var(--border2);color:var(--text3);border-radius:var(--r);padding:9px 16px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;}
+.qe-clear:hover{border-color:var(--border3);color:var(--text2);}
+.qe-results{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px;margin-top:14px;display:none;}
+.qe-results.show{display:block;}
+.qe-result-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;}
+.qe-rstat{text-align:center;padding:12px;background:var(--bg2);border-radius:4px;}
+.qe-rstat-val{font-family:var(--display);font-size:26px;color:var(--accent);}
+.qe-rstat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;margin-top:3px;}
+
+/* ── ITEM MATCH MODAL ── */
+.match-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.match-modal-overlay.open{display:flex;}
+.match-modal{background:var(--bg2);border:1px solid var(--accent);border-radius:8px;width:90%;max-width:560px;animation:min .2s ease;}
+@keyframes min{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.match-hdr{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.match-title{font-family:var(--display);font-size:22px;letter-spacing:2px;color:var(--accent);}
+.match-body{padding:22px;}
+.match-incoming{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:12px 14px;margin-bottom:16px;}
+.match-incoming-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:4px;}
+.match-incoming-val{font-size:15px;color:var(--text);}
+.match-incoming-vendor{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.match-question{font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:12px;}
+.match-options{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;}
+.match-option{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:10px 14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between;}
+.match-option:hover,.match-option.sel{border-color:var(--accent);background:var(--accent3);}
+.match-option-name{font-size:13px;}
+.match-option-cat{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.match-conf{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;}
+.conf-high{background:var(--green2);color:var(--green);}
+.conf-med{background:var(--accent3);color:var(--accent);}
+.match-new-form{border-top:1px solid var(--border);padding-top:14px;margin-top:2px;}
+.match-new-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:8px;}
+.match-new-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.match-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;width:92%;max-width:820px;max-height:92vh;overflow-y:auto;animation:min .2s ease;}
+.modal-hdr{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:2;}
+.modal-title{font-family:var(--display);font-size:24px;letter-spacing:2px;}
+.modal-close{background:none;border:1px solid var(--border2);color:var(--text2);width:30px;height:30px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-close:hover{border-color:var(--red);color:var(--red);}
+.modal-body{padding:22px;}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;bottom:0;background:var(--bg2);}
+
+/* ── UPLOAD ── */
+.upload-zone{border:2px dashed var(--border2);border-radius:8px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:18px;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent3);}
+.upload-icon{font-size:36px;margin-bottom:10px;}
+.upload-txt{font-family:var(--display);font-size:20px;letter-spacing:2px;color:var(--text2);}
+.upload-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px;}
+.ai-proc{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:18px;text-align:center;margin-bottom:18px;display:none;}
+.ai-spin{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ai-txt{font-family:var(--mono);font-size:11px;color:var(--text2);}
+.ai-txt span{color:var(--accent);animation:blink 1.1s ease infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.ai-preview{background:var(--bg3);border:1px solid var(--green);border-radius:4px;padding:10px 14px;margin-bottom:14px;font-family:var(--mono);font-size:11px;color:var(--green);display:none;}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group.full{grid-column:1/-1;}
+label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+input.fi,select.fi,textarea.fi{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:7px 10px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s;}
+input.fi:focus,select.fi:focus,textarea.fi:focus{border-color:var(--accent);}
+textarea.fi{resize:vertical;min-height:70px;}
+.line-hdr{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:7px;margin-bottom:5px;}
+.line-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:7px;margin-bottom:7px;align-items:center;}
+.line-row.flagged-row{background:var(--red2);border-radius:4px;padding:4px;}
+.rm-line{background:none;border:1px solid var(--border2);color:var(--text3);width:26px;height:26px;border-radius:3px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.rm-line:hover{border-color:var(--red);color:var(--red);}
+.add-line{background:none;border:1px dashed var(--border2);color:var(--text3);padding:7px;border-radius:4px;width:100%;cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .15s;margin-top:4px;}
+.add-line:hover{border-color:var(--accent);color:var(--accent);}
+.inv-total{font-family:var(--display);font-size:26px;color:var(--accent);letter-spacing:1px;}
+
+/* ── VENDOR CARDS ── */
+.vendor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:20px;}
+.vcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .15s;}
+.vcard:hover{border-color:var(--accent);}
+.vcard-name{font-family:var(--display);font-size:22px;letter-spacing:2px;margin-bottom:2px;}
+.vcard-since{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:10px;}
+.vcard-stats{display:flex;gap:14px;margin-bottom:10px;}
+.vstat{text-align:center;}
+.vstat-val{font-family:var(--display);font-size:22px;color:var(--accent);}
+.vstat-lbl{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;}
+
+/* ── ITEM COMPARE ── */
+.ic-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;}
+.ic-hdr{background:var(--bg3);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s;}
+.ic-hdr:hover{background:var(--bg4);}
+.ic-name{font-family:var(--display);font-size:18px;letter-spacing:2px;}
+.ic-meta{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.ic-body{padding:12px 14px;display:none;}
+.ic-body.open{display:block;}
+.vpr{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.vpr:last-child{border-bottom:none;}
+.best{color:var(--green);font-weight:600;}
+.best-badge{background:var(--green2);color:var(--green);border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:9px;margin-left:6px;}
+
+/* ── PRICE HISTORY ── */
+.ph-list{display:flex;flex-direction:column;gap:5px;}
+.ph-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg3);border-radius:3px;border-left:3px solid;}
+.ph-row.up{border-left-color:var(--red);}
+.ph-row.dn{border-left-color:var(--green);}
+.ph-row.eq{border-left-color:var(--border2);}
+
+/* ── REVIEW ── */
+.rev-card{background:var(--bg2);border:1px solid var(--accent);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+.rev-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rev-title{font-family:var(--display);font-size:20px;letter-spacing:2px;}
+.rev-meta{display:flex;gap:18px;margin-bottom:12px;flex-wrap:wrap;}
+.rev-meta-item{font-family:var(--mono);font-size:11px;}
+.rml{color:var(--text3);} .rmv{color:var(--text);}
+.approve-btn{background:var(--green);color:#000;border:none;border-radius:4px;padding:8px 18px;font-family:var(--display);font-size:15px;letter-spacing:2px;cursor:pointer;transition:opacity .15s;}
+.approve-btn:hover{opacity:.85;}
+
+/* ── REVIEW SPLIT MODAL ── */
+.rev-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;width:96%;max-width:1100px;max-height:94vh;display:flex;flex-direction:column;animation:min .2s ease;}
+.rev-modal-hdr{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.rev-modal-body{display:flex;flex:1;overflow:hidden;min-height:0;}
+.rev-left{width:45%;min-width:45%;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .25s ease,min-width .25s ease;}
+.rev-left.collapsed{width:44px;min-width:44px;}
+.rev-left.collapsed .rev-img-area,
+.rev-left.collapsed .rev-img-placeholder,
+.rev-left.collapsed #revImgReal,
+.rev-left.collapsed > div:last-child{display:none!important;}
+.rev-left.collapsed .rev-panel-hdr{flex-direction:column;gap:6px;padding:10px 8px;align-items:center;}
+.rev-left.collapsed .rev-panel-hdr > div:last-child{flex-direction:column;}
+.rev-right{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.rev-panel-hdr{padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.rev-panel-hdr span{color:var(--text2);}
+.rev-img-area{flex:1;overflow-y:auto;padding:16px;display:flex;align-items:flex-start;justify-content:center;background:var(--bg);}
+.rev-img-placeholder{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;gap:10px;cursor:pointer;transition:border-color .15s;min-height:340px;}
+.rev-img-placeholder:hover{border-color:var(--accent);}
+.rev-img-real{max-width:100%;border-radius:4px;display:none;}
+.rev-img-zoom{display:flex;gap:6px;margin-top:8px;}
+.rev-lines-area{flex:1;overflow-y:auto;padding:14px 16px;}
+.rev-line-row{display:grid;grid-template-columns:2fr 1fr 0.55fr 0.55fr 0.85fr 0.85fr auto;gap:5px;margin-bottom:6px;align-items:center;}
+.rev-line-row.flagged{background:rgba(224,82,82,.06);border-radius:4px;padding:4px 6px;border-left:3px solid var(--red);}
+.rev-line-lbl{display:grid;grid-template-columns:2fr 1fr 0.55fr 0.55fr 0.85fr 0.85fr auto;gap:5px;margin-bottom:6px;padding:0 2px;}
+.rev-line-lbl label{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;}
+.flag-pill{background:var(--red2);color:var(--red);border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:9px;border:1px solid rgba(224,82,82,.25);}
+.match-pill{background:var(--accent3);color:var(--accent);border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:9px;border:1px solid rgba(232,197,71,.25);cursor:pointer;}
+.match-pill:hover{background:rgba(232,197,71,.2);}
+.rev-modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg2);}
+.rev-total-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:3px;}
+.rev-total-val{font-family:var(--display);font-size:26px;color:var(--accent);}
+.rev-total-check{font-family:var(--mono);font-size:10px;margin-top:2px;}
+.rev-foot-actions{display:flex;gap:8px;align-items:center;}
+.zoom-control{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);width:28px;height:28px;border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.zoom-control:hover{border-color:var(--accent);color:var(--accent);}
+@media(max-width:768px){
+  .rev-modal-body{flex-direction:column;}
+  .rev-left{width:100%;min-width:unset;border-right:none;border-bottom:1px solid var(--border);max-height:250px;}
+  .rev-modal{max-width:100%;width:99%;}
+}
+
+/* ── ALIAS TABLE ── */
+.alias-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:20px;}
+.alias-hdr{background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border);}
+.alias-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;}
+
+/* ── EXPORT GRID ── */
+.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:20px;}
+.export-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer;transition:all .15s;}
+.export-card:hover{border-color:var(--accent);background:var(--accent3);}
+.export-icon{font-size:26px;margin-bottom:7px;}
+.export-lbl{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:1px;}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:50px 20px;color:var(--text3);}
+.empty-icon{font-size:42px;margin-bottom:10px;}
+.empty-txt{font-family:var(--display);font-size:22px;letter-spacing:2px;}
+.empty-sub{font-family:var(--mono);font-size:10px;margin-top:6px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--bg3);border:1px solid var(--border2);border-left:3px solid var(--green);border-radius:4px;padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--text);z-index:300;transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none;max-width:300px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{border-left-color:var(--red);}
+.toast.warn{border-left-color:var(--accent);}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{width:56px;min-width:56px;}
+  .logo-word{font-size:13px;letter-spacing:1px;}
+  .logo-tag,.nav-item span:not(.nav-icon),.nav-badge{display:none;}
+  .nav-item{justify-content:center;padding:12px;}
+  .sidebar-foot .upload-btn span{display:none;}
+  .chart-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .qe-grid{grid-template-columns:1fr 1fr;}
+  .line-hdr,.line-row{grid-template-columns:2fr 1fr 1fr auto;}
+  .content{padding:14px;}
+  .topbar{padding:10px 14px;}
+  .search-box{width:150px;}
+}
+
+/* ── CONFIDENCE INDICATOR ── */
+.conf-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+.conf-dot.high{background:var(--green);}
+.conf-dot.med{background:var(--accent);}
+.conf-dot.low{background:var(--red);}
+
+/* ── ALIAS PILL ── */
+.alias-pill{background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:2px 8px;font-family:var(--mono);font-size:10px;color:var(--text3);display:inline-block;margin:2px;}
+
+/* ── TREND INDICATORS ── */
+.t-up{color:var(--red);font-family:var(--mono);font-size:11px;}
+.t-dn{color:var(--green);font-family:var(--mono);font-size:11px;}
+.t-eq{color:var(--text3);font-family:var(--mono);font-size:11px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-word">INVOICEINTEL</div>
+    <div class="logo-tag">Food Cost Intelligence</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-sec">Overview</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><span class="nav-icon">⬡</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="nav('query')"><span class="nav-icon">◎</span><span>Query Engine</span></div>
+    <div class="nav-item" onclick="nav('invoices')"><span class="nav-icon">◫</span><span>Invoices</span></div>
+    <div class="nav-item" onclick="nav('review')"><span class="nav-icon">◈</span><span>Review Queue</span><span class="nav-badge" id="reviewBadge">2</span></div>
+    <div class="nav-sec">Intelligence</div>
+    <div class="nav-item" onclick="nav('items')"><span class="nav-icon">◉</span><span>Items & Prices</span></div>
+    <div class="nav-item" onclick="nav('vendors')"><span class="nav-icon">◷</span><span>Vendors</span></div>
+    <div class="nav-item" onclick="nav('trends')"><span class="nav-icon">◬</span><span>Trends</span></div>
+    <div class="nav-sec">Settings</div>
+    <div class="nav-item" onclick="nav('aliases')"><span class="nav-icon">⇄</span><span>Item Aliases</span></div>
+    <div class="nav-item" onclick="nav('export')"><span class="nav-icon">◻</span><span>Export</span></div>
+    <div class="nav-item" onclick="nav('settings')"><span class="nav-icon">⚙</span><span>Settings</span></div>
+  </nav>
+  <div class="sidebar-foot">
+    <button class="upload-btn" onclick="openUpload()"><span>+ NEW INVOICE</span></button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="pageTitle">DASHBOARD</div>
+    <div class="topbar-right">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-box" type="text" placeholder="Search items, vendors, invoices…" oninput="globalSearch(this.value)" id="globalSearchInput">
+      </div>
+      <button class="topbar-btn" onclick="nav('query')">⚙ Custom Query</button>
+      <button class="flag-btn" onclick="nav('review')" id="flagBtn">⚑ 3 FLAGS</button>
+    </div>
+  </div>
+
+  <!-- ════════ DASHBOARD ════════ -->
+  <div class="page active content" id="page-dashboard">
+    <div class="stat-grid">
+      <div class="stat-card y"><div class="stat-lbl">Total Food Cost</div><div class="stat-val">$24,871</div><div class="stat-sub">April 2025</div><div class="stat-delta up">↑ +8.4% vs March</div></div>
+      <div class="stat-card g"><div class="stat-lbl">Invoices Processed</div><div class="stat-val">47</div><div class="stat-sub">This month · 44 approved</div><div class="stat-delta dn">✓ On track</div></div>
+      <div class="stat-card r"><div class="stat-lbl">Flagged</div><div class="stat-val">3</div><div class="stat-sub">Needs attention</div><div class="stat-delta up">Price spike + missing data</div></div>
+      <div class="stat-card b"><div class="stat-lbl">Unique Items</div><div class="stat-val">84</div><div class="stat-sub">Across all vendors</div><div class="stat-delta dn">↓ 3 merged this week</div></div>
+      <div class="stat-card o"><div class="stat-lbl">Avg Unit Cost</div><div class="stat-val">$529</div><div class="stat-sub">Per invoice</div><div class="stat-delta up">↑ +3.1% vs avg</div></div>
+    </div>
+
+    <div class="flags-panel">
+      <div class="flags-hdr"><div class="flags-title">ATTENTION REQUIRED</div><div class="flag-count" id="flagCount">3</div></div>
+      <div id="flagsContainer"></div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">Spend by Category — April</div><div class="bar-chart" id="catChart"></div></div>
+      <div class="chart-card"><div class="chart-title">Spend by Vendor — April</div><div class="bar-chart" id="vendChart"></div></div>
+    </div>
+
+    <div class="sec-hdr"><div class="sec-title">RECENT INVOICES</div><button class="btn" onclick="nav('invoices')">View All →</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Invoice</th><th>Vendor</th><th>Date</th><th>Categories</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead><tbody id="recentTbody"></tbody></table></div>
+  </div>
+
+  <!-- ════════ QUERY ENGINE ════════ -->
+  <div class="page content" id="page-query">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:16px;">Build any custom query — mix vendors, items, categories, and date ranges. Get totals, averages, price history, and more.</div>
+
+    <div class="query-engine">
+      <div class="qe-title">CUSTOM QUERY</div>
+      <div class="qe-grid">
+        <div class="qe-group">
+          <div class="qe-lbl">Date From</div>
+          <input type="date" class="qe-input" id="qFrom" value="2025-01-01">
+        </div>
+        <div class="qe-group">
+          <div class="qe-lbl">Date To</div>
+          <input type="date" class="qe-input" id="qTo" value="2025-04-30">
+        </div>
+        <div class="qe-group">
+          <div class="qe-lbl">Vendor(s)</div>
+          <select class="qe-input" id="qVendor" onchange="addQTag('vendor',this)">
+            <option value="">+ Add Vendor…</option>
+            <option>SYSCO</option><option>Gordon Food Svc</option><option>Produce Pro</option>
+            <option>US Foods</option><option>Local Farm Co</option><option>Empire Dairy</option>
+          </select>
+        </div>
+        <div class="qe-group">
+          <div class="qe-lbl">Category</div>
+          <select class="qe-input" id="qCat" onchange="addQTag('category',this)">
+            <option value="">+ Add Category…</option>
+            <option>Meat & Poultry</option><option>Produce</option><option>Dairy</option>
+            <option>Dry Goods</option><option>Seafood</option><option>Beverages</option>
+          </select>
+        </div>
+        <div class="qe-group">
+          <div class="qe-lbl">Specific Item</div>
+          <select class="qe-input" id="qItem" onchange="addQTag('item',this)">
+            <option value="">+ Add Item…</option>
+            <option>Chicken Breast</option><option>Beef Tenderloin</option><option>Salmon Fillet</option>
+            <option>Roma Tomatoes</option><option>Heavy Cream</option><option>Butter (lb)</option>
+            <option>Russet Potatoes</option><option>All-Purpose Flour</option><option>Shrimp 16/20</option><option>Mozzarella</option>
+          </select>
+        </div>
+        <div class="qe-group">
+          <div class="qe-lbl">Status</div>
+          <select class="qe-input" id="qStatus">
+            <option value="">All</option><option>Approved</option><option>Flagged</option><option>Pending</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Active Filters Tags -->
+      <div style="margin-bottom:12px;">
+        <div class="qe-lbl" style="margin-bottom:6px;">Active Filters</div>
+        <div class="qe-multi" id="qTags" onclick="void(0)" style="min-height:32px;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text4);align-self:center;" id="qTagsPlaceholder">No filters — showing all data</span>
+        </div>
+      </div>
+
+      <div class="qe-actions">
+        <button class="qe-run" onclick="runQuery()">RUN QUERY</button>
+        <button class="qe-clear" onclick="clearQuery()">Clear Filters</button>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:8px;" id="qResultCount"></span>
+      </div>
+
+      <div class="qe-results" id="qResults">
+        <div class="qe-result-stat-grid" id="qStatGrid"></div>
+        <div class="sec-hdr" style="margin-top:6px;"><div class="sec-title" style="font-size:16px;">MATCHING INVOICES</div><button class="btn" onclick="exportQueryResults()">Export CSV</button></div>
+        <div class="tbl-wrap" style="margin-bottom:12px;"><table><thead><tr><th>Invoice</th><th>Vendor</th><th>Date</th><th>Categories</th><th>Total</th><th>Status</th></tr></thead><tbody id="qTableBody"></tbody></table></div>
+        <div id="qItemBreakdown"></div>
+      </div>
+    </div>
+
+    <!-- QUICK QUERIES -->
+    <div class="sec-hdr"><div class="sec-title">QUICK QUERIES</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px;" id="quickQueries"></div>
+  </div>
+
+  <!-- ════════ INVOICES ════════ -->
+  <div class="page content" id="page-invoices">
+    <div class="filter-bar">
+      <span class="filter-lbl">Filter:</span>
+      <select class="fsel" id="fVendor" onchange="renderInvoices()"><option value="">All Vendors</option><option>SYSCO</option><option>Gordon Food Svc</option><option>Produce Pro</option><option>US Foods</option><option>Local Farm Co</option><option>Empire Dairy</option></select>
+      <select class="fsel" id="fCat" onchange="renderInvoices()"><option value="">All Categories</option><option value="meat">Meat</option><option value="produce">Produce</option><option value="dairy">Dairy</option><option value="dry">Dry Goods</option><option value="seafood">Seafood</option></select>
+      <select class="fsel" id="fStatus" onchange="renderInvoices()"><option value="">All Status</option><option>approved</option><option>pending</option><option>flagged</option></select>
+      <input type="date" class="fdate" id="fFrom" onchange="renderInvoices()">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">to</span>
+      <input type="date" class="fdate" id="fTo" onchange="renderInvoices()">
+      <button class="btn" onclick="clearInvoiceFilters()">Clear</button>
+    </div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px;" id="invoiceFilterSummary"></div>
+    <div class="tbl-wrap"><table><thead><tr><th onclick="sortInv('id')">Invoice ↕</th><th onclick="sortInv('vendor')">Vendor ↕</th><th onclick="sortInv('date')">Date ↕</th><th>Categories</th><th onclick="sortInv('items')">Items</th><th onclick="sortInv('total')">Total ↕</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invTbody"></tbody></table></div>
+  </div>
+
+  <!-- ════════ REVIEW QUEUE ════════ -->
+  <div class="page content" id="page-review">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:16px;">Verify all line items before saving to the database. Fix any flags, then approve.</div>
+    <div id="reviewContainer"></div>
+  </div>
+
+  <!-- ════════ ITEMS & PRICES ════════ -->
+  <div class="page content" id="page-items">
+    <div class="filter-bar">
+      <span class="filter-lbl">Category:</span>
+      <button class="btn on" onclick="setCat(this,'all')">All</button>
+      <button class="btn" onclick="setCat(this,'meat')">Meat</button>
+      <button class="btn" onclick="setCat(this,'produce')">Produce</button>
+      <button class="btn" onclick="setCat(this,'dairy')">Dairy</button>
+      <button class="btn" onclick="setCat(this,'dry')">Dry Goods</button>
+      <button class="btn" onclick="setCat(this,'seafood')">Seafood</button>
+    </div>
+    <div class="sec-hdr"><div class="sec-title">ITEM PRICE COMPARISON</div><div style="font-family:var(--mono);font-size:10px;color:var(--text3);">★ = best price · click row to expand</div></div>
+    <div id="itemsList"></div>
+  </div>
+
+  <!-- ════════ VENDORS ════════ -->
+  <div class="page content" id="page-vendors">
+    <div class="vendor-grid" id="vendorCards"></div>
+    <div class="sec-hdr"><div class="sec-title">VENDOR PERFORMANCE</div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Vendor</th><th>YTD Spend</th><th>Invoices</th><th>Avg Invoice</th><th>Price Increases</th><th>Best For</th><th>Actions</th></tr></thead><tbody id="vendorTbody"></tbody></table></div>
+  </div>
+
+  <!-- ════════ TRENDS ════════ -->
+  <div class="page content" id="page-trends">
+    <div class="chart-card" style="margin-bottom:18px;"><div class="chart-title">Monthly Food Cost — Last 6 Months</div><svg class="spark" id="costSpark" viewBox="0 0 600 90"></svg></div>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">Category YoY Δ</div><div class="bar-chart" id="yoyCat"></div></div>
+      <div class="chart-card"><div class="chart-title">Vendor Spend Trend</div><div class="bar-chart" id="vendTrend"></div></div>
+    </div>
+    <div class="sec-hdr"><div class="sec-title">SIGNIFICANT PRICE CHANGES</div></div>
+    <div class="tbl-wrap" style="margin-bottom:18px;"><table><thead><tr><th>Item</th><th>Vendor</th><th>Category</th><th>Previous</th><th>Current</th><th>Change</th><th>Significance</th></tr></thead><tbody id="trendTbody"></tbody></table></div>
+    <div class="sec-hdr"><div class="sec-title">ITEM PRICE HISTORY</div><select class="fsel" onchange="loadHistory(this.value)" id="historyItem"><option value="chicken">Chicken Breast</option><option value="salmon">Salmon Fillet</option><option value="beef">Beef Tenderloin</option><option value="tomato">Roma Tomatoes</option><option value="butter">Butter (lb)</option></select></div>
+    <div class="ph-list" id="phList"></div>
+  </div>
+
+  <!-- ════════ ITEM ALIASES ════════ -->
+  <div class="page content" id="page-aliases">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.7;">
+      When an invoice has a line item name that doesn't exactly match a canonical item (e.g. "Chkn Bst 8oz" vs "Chicken Breast"), 
+      InvoiceIntel will prompt you to map it. All mappings are saved here. You can edit, merge, or delete any alias at any time.
+    </div>
+    <div class="sec-hdr"><div class="sec-title">ALIAS MAPPINGS</div><button class="btn" onclick="openAddAlias()">+ Add Alias</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Vendor</th><th>Raw Line Item (as on invoice)</th><th>Maps To (canonical item)</th><th>Category</th><th>Confidence</th><th>Actions</th></tr></thead><tbody id="aliasTbody"></tbody></table></div>
+
+    <div style="margin-top:20px;" class="sec-hdr"><div class="sec-title">AUTO-MATCH RULES</div></div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;font-family:var(--mono);font-size:11px;line-height:2;color:var(--text2);">
+      <div><span class="conf-dot high"></span><strong style="color:var(--green)">High confidence (≥90%)</strong> — Auto-mapped silently. Logged in alias table.</div>
+      <div><span class="conf-dot med"></span><strong style="color:var(--accent)">Medium confidence (60–89%)</strong> — Suggested match shown in Review Queue. One click to approve.</div>
+      <div><span class="conf-dot low"></span><strong style="color:var(--red)">Low confidence (&lt;60%)</strong> — Prompted immediately. You choose the canonical item or create a new one.</div>
+    </div>
+  </div>
+
+  <!-- ════════ EXPORT ════════ -->
+  <div class="page content" id="page-export">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:16px;">Export any data slice for cross-referencing with your POS product mix or accounting software.</div>
+    <div class="sec-hdr"><div class="sec-title">EXPORT DATA</div></div>
+    <div class="export-grid" id="exportGrid"></div>
+    <div class="sec-hdr"><div class="sec-title">INVOICE FILES</div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Invoice</th><th>Vendor</th><th>Date</th><th>Type</th><th>Size</th><th>Actions</th></tr></thead><tbody id="fileTbody"></tbody></table></div>
+  </div>
+
+  <!-- ════════ SETTINGS ════════ -->
+  <div class="page content" id="page-settings">
+    <div style="max-width:560px;">
+
+      <!-- API Key section -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:16px;">
+        <div class="sec-title" style="margin-bottom:4px;">ANTHROPIC API KEY</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:16px;line-height:1.8;">
+          Your key is stored only in this browser — never in the code or on any server.<br>
+          Get your key at <span style="color:var(--accent)">console.anthropic.com → API Keys</span>
+        </div>
+        <div id="apiKeyStatus" style="margin-bottom:14px;"></div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label>Anthropic API Key</label>
+          <div style="display:flex;gap:8px;">
+            <input class="fi" type="password" id="anthropicKeyInput" placeholder="sk-ant-api03-..." style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn" onclick="toggleKeyVisibility()" id="toggleKeyBtn" style="flex-shrink:0;">Show</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-primary" style="font-size:14px;padding:9px 20px;letter-spacing:1px;" onclick="saveApiKey()">SAVE KEY</button>
+          <button class="btn btn-danger" onclick="clearApiKey()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Connection status -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:16px;">
+        <div class="sec-title" style="margin-bottom:14px;">CONNECTION STATUS</div>
+        <div style="display:flex;flex-direction:column;gap:10px;" id="connStatus">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:4px;">
+            <div>
+              <div style="font-size:13px;">Supabase Database</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;">wuiakcgqaznnqevbggia.supabase.co</div>
+            </div>
+            <span id="sbStatus" style="font-family:var(--mono);font-size:10px;color:var(--text3);">Checking…</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:4px;">
+            <div>
+              <div style="font-size:13px;">Anthropic AI (Claude)</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;">Invoice reading & extraction</div>
+            </div>
+            <span id="aiStatus" style="font-family:var(--mono);font-size:10px;color:var(--text3);">—</span>
+          </div>
+        </div>
+        <button class="btn" style="margin-top:12px;" onclick="checkAllConnections()">Test Connections</button>
+      </div>
+
+      <!-- App info -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:22px;">
+        <div class="sec-title" style="margin-bottom:14px;">APP INFO</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text2);">
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">App</span><span>InvoiceIntel</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Hosted at</span><span>choeunp4.github.io/invoiceintel</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Database</span><span>Supabase (invoiceintel)</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">AI Model</span><span>Claude claude-opus-4-5</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3);">Version</span><span>1.0.0</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════ MODALS ═══════════════════════════════════ -->
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">NEW INVOICE</div><button class="modal-close" onclick="closeM('uploadModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileIn').click()" ondragover="this.classList.add('drag');event.preventDefault()" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <div class="upload-icon">📄</div>
+        <div class="upload-txt">DROP PHOTO OR PDF HERE</div>
+        <div class="upload-sub">JPG · PNG · PDF · or click to browse</div>
+        <input type="file" id="fileIn" style="display:none" accept="image/*,.pdf" onchange="handleFile(this)">
+      </div>
+      <div class="ai-proc" id="aiProc"><div class="ai-spin"></div><div class="ai-txt">AI reading invoice<span>...</span></div><div class="ai-txt" style="font-size:10px;color:var(--text3);margin-top:3px">Extracting vendor · line items · quantities · prices</div></div>
+      <div class="ai-preview" id="aiPreview">✓ AI extracted <span id="aiCount">0</span> line items — please verify before submitting</div>
+      <div id="invForm">
+        <div class="form-grid">
+          <div class="form-group"><label>Invoice Number</label><input class="fi" type="text" id="invNum" placeholder="INV-0048"></div>
+          <div class="form-group"><label>Invoice Date</label><input class="fi" type="date" id="invDate"></div>
+          <div class="form-group"><label>Vendor</label>
+            <select class="fi" id="invVendor">
+              <option value="">Select Vendor…</option>
+              <option>SYSCO</option><option>Gordon Food Svc</option><option>Produce Pro</option>
+              <option>US Foods</option><option>Local Farm Co</option><option>Empire Dairy</option>
+              <option value="__new">+ Add New Vendor</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Payment Terms</label>
+            <select class="fi"><option>Net 30</option><option>Net 15</option><option>Due on Receipt</option><option>COD</option></select>
+          </div>
+          <div class="form-group full"><label>Notes</label><textarea class="fi" id="invNotes" placeholder="Delivery notes, discrepancies, price disputes…"></textarea></div>
+        </div>
+        <div style="margin-top:16px;">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Line Items</div>
+          <div style="display:grid;grid-template-columns:2.5fr 1fr 0.6fr 0.6fr 0.9fr 0.9fr auto;gap:6px;margin-bottom:5px;padding:0 2px;">
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Item Name</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Category</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Qty</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Unit</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Unit Price</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Line Total</label>
+            <div></div>
+          </div>
+          <div id="lineItems"></div>
+          <button class="add-line" onclick="addLine()">+ Add Line Item</button>
+        </div>
+        <!-- Subtotal / Tax / Fees / Total -->
+        <div style="margin-top:16px;background:var(--bg3);border-radius:var(--r);padding:14px 16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label>Subtotal</label>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="invSubtotal" placeholder="0.00" step="0.01" oninput="recalcTotal()" style="flex:1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tax</label>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="invTax" placeholder="0.00" step="0.01" oninput="recalcTotal()" style="flex:1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Fees / Other</label>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="invFees" placeholder="0.00" step="0.01" oninput="recalcTotal()" style="flex:1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Grand Total</label>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="invGrandTotal" placeholder="0.00" step="0.01" style="flex:1;border-color:var(--accent);">
+              </div>
+            </div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;margin-top:8px;" id="totalMatchMsg"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:3px;">INVOICE TOTAL</div>
+        <div class="inv-total" id="invTotal">$0.00</div>
+      </div>
+      <div style="display:flex;gap:10px;"><button class="btn" onclick="saveDraft()">Save Draft</button><button class="btn-primary" onclick="submitReview()">SUBMIT FOR REVIEW →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM MATCH MODAL -->
+<div class="match-modal-overlay" id="matchModal">
+  <div class="match-modal">
+    <div class="match-hdr"><div class="match-title">MATCH ITEM</div><button class="modal-close" onclick="closeM('matchModal')">✕</button></div>
+    <div class="match-body">
+      <div class="match-incoming">
+        <div class="match-incoming-lbl">New line item from invoice</div>
+        <div class="match-incoming-val" id="matchIncoming">Chkn Bst 8oz</div>
+        <div class="match-incoming-vendor" id="matchVendor">From: SYSCO</div>
+      </div>
+      <div class="match-question">Does this match an existing item in your database?</div>
+      <div class="match-options" id="matchOptions"></div>
+      <div class="match-new-form">
+        <div class="match-new-lbl">Or create a new canonical item:</div>
+        <div class="match-new-grid">
+          <div class="form-group"><label>Canonical Name</label><input class="fi" type="text" id="newCanonName" placeholder="e.g. Chicken Breast"></div>
+          <div class="form-group"><label>Category</label>
+            <select class="fi" id="newCanonCat">
+              <option value="">Select…</option>
+              <option>Meat & Poultry</option><option>Produce</option><option>Dairy</option>
+              <option>Dry Goods</option><option>Seafood</option><option>Beverages</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="match-foot">
+      <button class="btn btn-danger" onclick="skipMatch()">Skip for now</button>
+      <button class="btn-primary" onclick="confirmMatch()">CONFIRM MATCH</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW SPLIT-VIEW MODAL -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="rev-modal">
+    <div class="rev-modal-hdr">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="modal-title" id="revModalTitle">REVIEW INVOICE</div>
+        <span id="revModalStatus"></span>
+        <span id="revModalVendor" style="font-family:var(--mono);font-size:11px;color:var(--text3);"></span>
+      </div>
+      <button class="modal-close" onclick="closeM('reviewModal')">✕</button>
+    </div>
+
+    <div class="rev-modal-body">
+      <!-- LEFT: Invoice image -->
+      <div class="rev-left" id="revLeftPanel">
+        <div class="rev-panel-hdr" style="cursor:pointer;" onclick="toggleRevPanel()">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="revPanelToggleIcon">▼</span>
+            <span id="revPanelLabel">Invoice Image / PDF</span>
+          </div>
+          <div style="display:flex;gap:5px;" onclick="event.stopPropagation()">
+            <button class="zoom-control" onclick="zoomImg(-0.15)" title="Zoom out">−</button>
+            <button class="zoom-control" onclick="zoomImg(0.15)" title="Zoom in">+</button>
+            <button class="zoom-control" onclick="rotateImg()" title="Rotate">↻</button>
+            <button class="zoom-control" onclick="document.getElementById('revFileIn2').click()" title="Upload file" style="font-size:11px;width:auto;padding:0 6px;">📎</button>
+            <input type="file" id="revFileIn2" style="display:none" accept="image/*,.pdf" onchange="loadRevFile(this)">
+          </div>
+        </div>
+        <div class="rev-img-area" id="revImgArea">
+          <div class="rev-img-placeholder" id="revImgPlaceholder" onclick="document.getElementById('revFileIn').click()">
+            <div style="font-size:36px;">📄</div>
+            <div style="font-family:var(--display);font-size:18px;letter-spacing:2px;color:var(--text2);">ATTACH INVOICE</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);">Click to upload photo or PDF</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;">JPG · PNG · PDF supported</div>
+            <input type="file" id="revFileIn" style="display:none" accept="image/*,.pdf" onchange="loadRevFile(this)">
+          </div>
+          <img id="revImgReal" class="rev-img-real" alt="Invoice" style="display:none;max-width:100%;border-radius:4px;transform-origin:top center;">
+        </div>
+        <!-- Invoice summary strip -->
+        <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--bg3);flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);">Invoice Total (on file)</div>
+            <div style="font-family:var(--display);font-size:18px;color:var(--text2)" id="revOrigTotal">—</div>
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:3px;" id="revFileStatus">No file attached</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Editable line items -->
+      <div class="rev-right">
+        <div class="rev-panel-hdr">
+          Line Items — verify each row against the invoice
+          <button class="btn-ghost" onclick="addRevLine()" style="font-size:10px;padding:3px 8px;">+ Add Line</button>
+        </div>
+        <div class="rev-lines-area">
+          <!-- Column headers — must match rev-line-row grid exactly -->
+          <div style="display:grid;grid-template-columns:2fr 1fr 0.55fr 0.55fr 0.85fr 0.85fr auto;gap:5px;margin-bottom:5px;padding:0 2px;">
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Item Name</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Category</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Qty</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Unit</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Unit $</label>
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Line Total</label>
+            <div></div>
+          </div>
+          <div id="revLineItems"></div>
+          <!-- Subtotal / Tax / Fees -->
+          <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:3px;">SUBTOTAL</div>
+              <div style="display:flex;align-items:center;gap:3px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="revSubtotal" placeholder="0.00" step="0.01" oninput="updateRevTotal()" style="font-family:var(--mono);font-size:12px;padding:5px 7px;">
+              </div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:3px;">TAX</div>
+              <div style="display:flex;align-items:center;gap:3px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="revTax" placeholder="0.00" step="0.01" oninput="updateRevTotal()" style="font-family:var(--mono);font-size:12px;padding:5px 7px;">
+              </div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:3px;">FEES / OTHER</div>
+              <div style="display:flex;align-items:center;gap:3px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--text2);">$</span>
+                <input class="fi" type="number" id="revFees" placeholder="0.00" step="0.01" oninput="updateRevTotal()" style="font-family:var(--mono);font-size:12px;padding:5px 7px;">
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:4px;margin-bottom:6px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);">Calculated Grand Total</div>
+            <div style="font-family:var(--display);font-size:22px;color:var(--accent);" id="revCalcTotal">$0.00</div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;margin-bottom:10px;" id="revTotalDiff"></div>
+          <!-- Flags -->
+          <div id="revFlagsList"></div>
+          <!-- Notes -->
+          <div style="margin-top:10px;">
+            <label style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px;">Notes / Discrepancies</label>
+            <textarea class="fi" id="revNotes" style="width:100%;min-height:56px;" placeholder="Note any discrepancies, price disputes, missing items…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rev-modal-foot">
+      <div>
+        <div class="rev-total-lbl">Invoice Total</div>
+        <div class="rev-total-val" id="revFootTotal">$0.00</div>
+        <div class="rev-total-check" id="revTotalOk"></div>
+      </div>
+      <div class="rev-foot-actions">
+        <button class="btn btn-danger" onclick="flagRevInvoice()">⚑ Flag Issue</button>
+        <button class="btn" onclick="closeM('reviewModal')">Save Draft</button>
+        <button class="btn-primary" id="revApproveBtn" onclick="approveFromModal()">APPROVE & SAVE ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title" id="editModalTitle">EDIT INVOICE</div><button class="modal-close" onclick="closeM('editModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Item Name</label><input class="fi" id="editName" type="text" value="Prime Beef Tenderloin"></div>
+        <div class="form-group"><label>Category</label><select class="fi" id="editCat"><option>Meat & Poultry</option><option>Produce</option><option>Dairy</option><option>Dry Goods</option><option>Seafood</option></select></div>
+        <div class="form-group"><label>Unit</label><select class="fi"><option>lb</option><option>kg</option><option>case</option><option>each</option><option>oz</option><option>gallon</option></select></div>
+        <div class="form-group"><label>Quantity</label><input class="fi" type="number" value="15"></div>
+        <div class="form-group"><label>Unit Price ($)</label><input class="fi" type="number" id="editPrice" value="32.40" step="0.01"></div>
+        <div class="form-group"><label>Canonical Item</label><select class="fi" id="editCanonical"><option>Beef Tenderloin</option><option>Chicken Breast</option><option>Salmon Fillet</option></select></div>
+        <div class="form-group full"><label>Flag Reason</label><input class="fi" type="text" value="Price spike — verify with vendor"></div>
+        <div class="form-group full"><label>Notes</label><textarea class="fi">Called vendor — confirmed increase due to supply shortage.</textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-danger">⚑ Flag for Follow-up</button><button class="btn-primary" onclick="saveEdit()">SAVE CHANGES</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════ SUPABASE SDK ═════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ═══════════════════════ SCRIPTS ══════════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════
+// ⚙️  SUPABASE CONFIG — paste your credentials here
+// ═════════════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://wuiakcgqaznnqevbggia.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1aWFrY2dxYXpubnFldmJnZ2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDQ1MDAsImV4cCI6MjA5MjYyMDUwMH0.Dr_5YiJsCqfimYumKeJVGLveh2wOZTH4zmIuGwsQBcI';
+
+// Anthropic key is stored in your browser only — never in the code
+function getAnthropicKey(){ return localStorage.getItem('ii_anthropic_key')||''; }
+function setAnthropicKey(k){ localStorage.setItem('ii_anthropic_key', k.trim()); }
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─────────────────────────────────────────────────────────────────────
+// DATABASE LAYER — all reads/writes go through these functions
+// ─────────────────────────────────────────────────────────────────────
+
+// ── CONNECTION CHECK ──
+async function checkConnection(){
+  try {
+    const {error} = await sb.from('vendors').select('id').limit(1);
+    if(error) throw error;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ── VENDORS ──
+async function dbGetVendors(){
+  const {data,error} = await sb.from('vendors').select('*').order('name');
+  if(error){console.error('vendors fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveVendor(name,since=null,notes=null){
+  const {data,error} = await sb.from('vendors').upsert({name,since,notes},{onConflict:'name'}).select().single();
+  if(error){console.error('vendor save:',error);return null;}
+  return data;
+}
+
+// ── ITEMS ──
+async function dbGetItems(){
+  const {data,error} = await sb.from('items').select('*').order('name');
+  if(error){console.error('items fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveItem(name,category,unit=null){
+  const {data,error} = await sb.from('items').upsert({name,category,unit},{onConflict:'name'}).select().single();
+  if(error){console.error('item save:',error);return null;}
+  return data;
+}
+
+// ── INVOICES ──
+async function dbGetInvoices(filters={}){
+  let q = sb.from('invoices')
+    .select(`*, vendors(name)`)
+    .order('invoice_date',{ascending:false});
+  if(filters.vendor_id) q=q.eq('vendor_id',filters.vendor_id);
+  if(filters.status)    q=q.eq('status',filters.status);
+  if(filters.from)      q=q.gte('invoice_date',filters.from);
+  if(filters.to)        q=q.lte('invoice_date',filters.to);
+  const {data,error}=await q;
+  if(error){console.error('invoices fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveInvoice(inv){
+  const {data,error} = await sb.from('invoices').insert(inv).select().single();
+  if(error){console.error('invoice save:',error);return null;}
+  return data;
+}
+
+async function dbUpdateInvoiceStatus(id,status){
+  const {error} = await sb.from('invoices').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){console.error('status update:',error);return false;}
+  return true;
+}
+
+// ── LINE ITEMS ──
+async function dbGetLineItems(invoice_id){
+  const {data,error} = await sb.from('line_items')
+    .select(`*, items(name,category)`)
+    .eq('invoice_id',invoice_id)
+    .order('created_at');
+  if(error){console.error('line items fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveLineItems(invoice_id, lines){
+  // Delete existing then re-insert
+  await sb.from('line_items').delete().eq('invoice_id',invoice_id);
+  if(!lines.length) return true;
+  const rows = lines.map(l=>({...l, invoice_id}));
+  const {error} = await sb.from('line_items').insert(rows);
+  if(error){console.error('line items save:',error);return false;}
+  return true;
+}
+
+// ── ALIASES ──
+async function dbGetAliases(){
+  const {data,error} = await sb.from('item_aliases')
+    .select(`*, vendors(name), items(name,category)`)
+    .order('created_at',{ascending:false});
+  if(error){console.error('aliases fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveAlias(vendor_id,raw_name,item_id,confidence='high'){
+  const {error} = await sb.from('item_aliases')
+    .upsert({vendor_id,raw_name,item_id,confidence},{onConflict:'vendor_id,raw_name'});
+  if(error){console.error('alias save:',error);return false;}
+  return true;
+}
+
+// ── PRICE HISTORY ──
+async function dbGetPriceHistory(item_id){
+  const {data,error} = await sb.from('price_history')
+    .select(`*, vendors(name)`)
+    .eq('item_id',item_id)
+    .order('recorded_at');
+  if(error){console.error('price history fetch:',error);return[];}
+  return data;
+}
+
+async function dbSavePriceHistory(item_id,vendor_id,unit_price,unit,invoice_id,recorded_at){
+  const {error} = await sb.from('price_history')
+    .insert({item_id,vendor_id,unit_price,unit,invoice_id,recorded_at});
+  if(error){console.error('price history save:',error);return false;}
+  return true;
+}
+
+// ── FLAGS ──
+async function dbGetFlags(invoice_id=null){
+  let q = sb.from('flags').select('*').eq('is_dismissed',false).order('created_at',{ascending:false});
+  if(invoice_id) q=q.eq('invoice_id',invoice_id);
+  const {data,error}=await q;
+  if(error){console.error('flags fetch:',error);return[];}
+  return data;
+}
+
+async function dbSaveFlag(invoice_id,line_item_id,flag_type,description){
+  const {error} = await sb.from('flags').insert({invoice_id,line_item_id,flag_type,description});
+  if(error){console.error('flag save:',error);return false;}
+  return true;
+}
+
+async function dbDismissFlag(id){
+  const {error} = await sb.from('flags').update({is_dismissed:true}).eq('id',id);
+  if(error){console.error('flag dismiss:',error);return false;}
+  return true;
+}
+
+// ── FILE STORAGE ──
+async function dbUploadInvoiceFile(invoiceId, file){
+  const ext = file.name.split('.').pop();
+  const path = `${invoiceId}/${Date.now()}.${ext}`;
+  const {data,error} = await sb.storage.from('invoices').upload(path, file, {upsert:true});
+  if(error){console.error('file upload:',error);return null;}
+  const {data:urlData} = sb.storage.from('invoices').getPublicUrl(path);
+  return {path, url: urlData?.publicUrl||null};
+}
+
+async function dbGetInvoiceFileUrl(path){
+  const {data} = await sb.storage.from('invoices').createSignedUrl(path, 3600);
+  return data?.signedUrl||null;
+}
+
+// ── FULL INVOICE SAVE (approve flow) ──
+async function dbApproveAndSaveInvoice(invoiceData, lineItems, vendorName){
+  toast('Saving to database…','');
+
+  // 1. Ensure vendor exists
+  let vendor = await dbSaveVendor(vendorName);
+  if(!vendor){toast('Error saving vendor','err');return false;}
+
+  // 2. Save invoice
+  const inv = await dbSaveInvoice({
+    invoice_number: invoiceData.invoice_number,
+    vendor_id: vendor.id,
+    invoice_date: invoiceData.invoice_date,
+    total: invoiceData.total,
+    status: 'approved',
+    payment_terms: invoiceData.payment_terms||null,
+    notes: invoiceData.notes||null,
+    file_url: invoiceData.file_url||null,
+    file_name: invoiceData.file_name||null,
+    file_type: invoiceData.file_type||null,
+  });
+  if(!inv){toast('Error saving invoice','err');return false;}
+
+  // 3. Save line items + price history
+  const lineRows = [];
+  for(const l of lineItems){
+    // Ensure canonical item exists
+    let item = null;
+    if(l.item_name && l.category){
+      item = await dbSaveItem(l.item_name, l.category, l.unit||null);
+    }
+    lineRows.push({
+      item_id: item?.id||null,
+      raw_name: l.raw_name||l.item_name||'',
+      category: l.category||null,
+      quantity: l.quantity||null,
+      unit: l.unit||null,
+      unit_price: l.unit_price||0,
+      is_flagged: l.is_flagged||false,
+      flag_reason: l.flag_reason||null,
+    });
+    // Record price history
+    if(item?.id && l.unit_price){
+      await dbSavePriceHistory(item.id, vendor.id, l.unit_price, l.unit||null, inv.id, invoiceData.invoice_date);
+    }
+  }
+  await dbSaveLineItems(inv.id, lineRows);
+
+  toast('✓ Invoice saved to database!');
+  return inv.id;
+}
+
+// ── LOAD DASHBOARD DATA FROM DB ──
+async function loadDashboardFromDB(){
+  const invoices = await dbGetInvoices();
+  if(!invoices.length) return; // No data yet — keep demo data
+
+  // Map DB invoices to local format
+  DB.invoices = invoices.map(i=>({
+    id: i.invoice_number||i.id.substring(0,8),
+    dbId: i.id,
+    vendor: i.vendors?.name||'Unknown',
+    date: i.invoice_date,
+    total: parseFloat(i.total)||0,
+    items: 0,
+    categories: [],
+    status: i.status,
+  }));
+
+  // Reload dashboard
+  renderDashboard();
+  renderQuickQueries();
+}
+
+const DB = {
+  invoices:[
+    {id:'INV-0047',vendor:'SYSCO',date:'2025-04-22',total:1842.50,items:12,categories:['meat','dairy'],status:'flagged'},
+    {id:'INV-0046',vendor:'Produce Pro',date:'2025-04-21',total:418.30,items:8,categories:['produce'],status:'approved'},
+    {id:'INV-0045',vendor:'Produce Pro',date:'2025-04-20',total:392.10,items:7,categories:['produce'],status:'flagged'},
+    {id:'INV-0044',vendor:'Gordon Food Svc',date:'2025-04-19',total:2104.00,items:18,categories:['meat','dry','dairy'],status:'approved'},
+    {id:'INV-2291',vendor:'Gordon Food Svc',date:'2025-04-18',total:2104.00,items:18,categories:['meat','dry','dairy'],status:'flagged'},
+    {id:'INV-0043',vendor:'US Foods',date:'2025-04-17',total:987.60,items:10,categories:['seafood','dry'],status:'approved'},
+    {id:'INV-0042',vendor:'Local Farm Co',date:'2025-04-15',total:310.00,items:5,categories:['produce','dairy'],status:'approved'},
+    {id:'INV-0041',vendor:'SYSCO',date:'2025-04-14',total:1620.80,items:14,categories:['meat','dry','dairy'],status:'approved'},
+    {id:'INV-0040',vendor:'Produce Pro',date:'2025-04-12',total:445.20,items:9,categories:['produce'],status:'approved'},
+    {id:'INV-0039',vendor:'US Foods',date:'2025-04-10',total:1130.40,items:11,categories:['seafood','meat'],status:'approved'},
+    {id:'INV-0038',vendor:'Gordon Food Svc',date:'2025-04-08',total:1890.00,items:16,categories:['meat','dry'],status:'pending'},
+    {id:'INV-0037',vendor:'SYSCO',date:'2025-03-28',total:1540.00,items:13,categories:['meat','dairy'],status:'approved'},
+    {id:'INV-0036',vendor:'Empire Dairy',date:'2025-03-25',total:310.00,items:6,categories:['dairy'],status:'approved'},
+    {id:'INV-0035',vendor:'Produce Pro',date:'2025-03-22',total:388.00,items:8,categories:['produce'],status:'approved'},
+    {id:'INV-0034',vendor:'Gordon Food Svc',date:'2025-03-18',total:2010.00,items:17,categories:['meat','dry'],status:'approved'},
+    {id:'INV-0033',vendor:'US Foods',date:'2025-03-14',total:940.00,items:9,categories:['seafood'],status:'approved'},
+    {id:'INV-0032',vendor:'Local Farm Co',date:'2025-03-10',total:285.00,items:5,categories:['produce','dairy'],status:'approved'},
+  ],
+  vendors:[
+    {name:'SYSCO',since:'Jan 2023',spend:9240,invoices:18,categories:['meat','dairy','dry'],avgInv:513,priceInc:4,bestFor:'Meat & Dry Goods'},
+    {name:'Gordon Food Svc',since:'Mar 2023',spend:7820,invoices:15,categories:['meat','dry','dairy'],avgInv:521,priceInc:2,bestFor:'Bulk Dry Goods'},
+    {name:'Produce Pro',since:'Jan 2023',spend:3210,invoices:22,categories:['produce'],avgInv:146,priceInc:5,bestFor:'Fresh Produce'},
+    {name:'US Foods',since:'Jun 2023',spend:2810,invoices:8,categories:['seafood','meat'],avgInv:351,priceInc:1,bestFor:'Seafood'},
+    {name:'Local Farm Co',since:'Apr 2024',spend:1240,invoices:12,categories:['produce','dairy'],avgInv:103,priceInc:0,bestFor:'Local Produce & Eggs'},
+    {name:'Empire Dairy',since:'Feb 2023',spend:890,invoices:10,categories:['dairy'],avgInv:89,priceInc:2,bestFor:'Dairy & Eggs'},
+  ],
+  items:[
+    {name:'Chicken Breast',cat:'meat',vendors:[{v:'SYSCO',price:3.40,unit:'lb'},{v:'Gordon Food Svc',price:3.15,unit:'lb'},{v:'US Foods',price:3.55,unit:'lb'}]},
+    {name:'Beef Tenderloin',cat:'meat',vendors:[{v:'SYSCO',price:32.40,unit:'lb'},{v:'Gordon Food Svc',price:28.90,unit:'lb'}]},
+    {name:'Salmon Fillet',cat:'seafood',vendors:[{v:'US Foods',price:12.80,unit:'lb'},{v:'SYSCO',price:13.40,unit:'lb'}]},
+    {name:'Roma Tomatoes',cat:'produce',vendors:[{v:'Produce Pro',price:1.20,unit:'lb'},{v:'Local Farm Co',price:1.45,unit:'lb'},{v:'Gordon Food Svc',price:1.35,unit:'lb'}]},
+    {name:'Heavy Cream',cat:'dairy',vendors:[{v:'Empire Dairy',price:4.80,unit:'qt'},{v:'SYSCO',price:5.20,unit:'qt'},{v:'Gordon Food Svc',price:4.95,unit:'qt'}]},
+    {name:'Butter (lb)',cat:'dairy',vendors:[{v:'Empire Dairy',price:3.80,unit:'lb'},{v:'SYSCO',price:4.10,unit:'lb'}]},
+    {name:'Russet Potatoes',cat:'produce',vendors:[{v:'Produce Pro',price:0.45,unit:'lb'},{v:'Local Farm Co',price:0.52,unit:'lb'},{v:'Gordon Food Svc',price:0.48,unit:'lb'}]},
+    {name:'All-Purpose Flour',cat:'dry',vendors:[{v:'Gordon Food Svc',price:0.62,unit:'lb'},{v:'SYSCO',price:0.68,unit:'lb'}]},
+    {name:'Shrimp 16/20',cat:'seafood',vendors:[{v:'US Foods',price:9.40,unit:'lb'},{v:'SYSCO',price:10.20,unit:'lb'}]},
+    {name:'Mozzarella',cat:'dairy',vendors:[{v:'Empire Dairy',price:5.60,unit:'lb'},{v:'SYSCO',price:5.90,unit:'lb'},{v:'Gordon Food Svc',price:5.75,unit:'lb'}]},
+  ],
+  aliases:[
+    {vendor:'SYSCO',raw:'Chkn Bst 8oz',canonical:'Chicken Breast',cat:'Meat & Poultry',conf:'high'},
+    {vendor:'Gordon Food Svc',raw:'GFS Chkn Brst',canonical:'Chicken Breast',cat:'Meat & Poultry',conf:'high'},
+    {vendor:'SYSCO',raw:'Beef Tend USDA',canonical:'Beef Tenderloin',cat:'Meat & Poultry',conf:'high'},
+    {vendor:'Produce Pro',raw:'Roma Tmto 25lb',canonical:'Roma Tomatoes',cat:'Produce',conf:'high'},
+    {vendor:'US Foods',raw:'Salmon Atl 1/2',canonical:'Salmon Fillet',cat:'Seafood',conf:'med'},
+    {vendor:'Empire Dairy',raw:'HvyCrm Qt Emp',canonical:'Heavy Cream',cat:'Dairy',conf:'med'},
+    {vendor:'Local Farm Co',raw:'Eggs Farm Lrg',canonical:'Farm Eggs (Large)',cat:'Dairy',conf:'high'},
+    {vendor:'SYSCO',raw:'Rst Pot 50lb',canonical:'Russet Potatoes',cat:'Produce',conf:'high'},
+  ],
+  catData:[
+    {name:'Meat & Poultry',val:9840,pct:40,color:'#e05252'},
+    {name:'Seafood',val:3940,pct:16,color:'#e08a52'},
+    {name:'Produce',val:3460,pct:14,color:'#52c97a'},
+    {name:'Dairy',val:3210,pct:13,color:'#52a8e0'},
+    {name:'Dry Goods',val:2960,pct:12,color:'#e8c547'},
+    {name:'Beverages',val:1461,pct:5,color:'#b478dc'},
+  ],
+  vendData:[
+    {name:'SYSCO',val:9240,pct:37,color:'#e8c547'},
+    {name:'Gordon Food Svc',val:7820,pct:31,color:'#52a8e0'},
+    {name:'Produce Pro',val:3210,pct:13,color:'#52c97a'},
+    {name:'US Foods',val:2810,pct:11,color:'#e08a52'},
+    {name:'Local Farm Co',val:1240,pct:5,color:'#b478dc'},
+    {name:'Empire Dairy',val:890,pct:3,color:'#e05252'},
+  ],
+  monthlyCosts:[18200,19800,21400,20100,22900,24871],
+  months:['Nov','Dec','Jan','Feb','Mar','Apr'],
+  priceHistory:{
+    chicken:[{date:'Nov',price:2.90,vendor:'GFS'},{date:'Dec',price:3.00,vendor:'GFS'},{date:'Jan',price:3.05,vendor:'GFS'},{date:'Feb',price:3.10,vendor:'SYSCO'},{date:'Mar',price:3.15,vendor:'GFS'},{date:'Apr',price:3.15,vendor:'GFS'}],
+    salmon:[{date:'Nov',price:10.80,vendor:'US'},{date:'Dec',price:11.20,vendor:'US'},{date:'Jan',price:11.50,vendor:'US'},{date:'Feb',price:11.80,vendor:'US'},{date:'Mar',price:12.00,vendor:'US'},{date:'Apr',price:12.80,vendor:'US'}],
+    beef:[{date:'Nov',price:22.00,vendor:'GFS'},{date:'Dec',price:23.10,vendor:'GFS'},{date:'Jan',price:24.10,vendor:'SYSCO'},{date:'Feb',price:25.00,vendor:'SYSCO'},{date:'Mar',price:26.50,vendor:'SYSCO'},{date:'Apr',price:32.40,vendor:'SYSCO'}],
+    tomato:[{date:'Nov',price:0.90,vendor:'PP'},{date:'Dec',price:0.95,vendor:'PP'},{date:'Jan',price:0.95,vendor:'PP'},{date:'Feb',price:1.05,vendor:'PP'},{date:'Mar',price:1.10,vendor:'PP'},{date:'Apr',price:1.20,vendor:'PP'}],
+    butter:[{date:'Nov',price:3.10,vendor:'Empire'},{date:'Dec',price:3.20,vendor:'Empire'},{date:'Jan',price:3.40,vendor:'Empire'},{date:'Feb',price:3.50,vendor:'Empire'},{date:'Mar',price:3.60,vendor:'Empire'},{date:'Apr',price:3.80,vendor:'Empire'}],
+  },
+  flags:[
+    {type:'price',main:'Beef Tenderloin — price spike +34%',detail:'SYSCO · Apr 22 · $32.40/lb vs avg $24.10/lb · INV-0047',inv:'INV-0047'},
+    {type:'missing',main:'Missing unit on Roma Tomatoes',detail:'Produce Pro · Apr 20 · Price recorded but unit (lb/case) not specified · INV-0045',inv:'INV-0045'},
+    {type:'duplicate',main:'Duplicate invoice number detected',detail:'Gordon Food Svc · INV-2291 appears twice (Apr 18 + Apr 19)',inv:'INV-2291'},
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// NAV
+// ─────────────────────────────────────────────────────────────────────
+const pageTitles={dashboard:'DASHBOARD',query:'QUERY ENGINE',invoices:'INVOICES',review:'REVIEW QUEUE',items:'ITEMS & PRICES',vendors:'VENDORS',trends:'TRENDS',aliases:'ITEM ALIASES',export:'EXPORT',settings:'SETTINGS'};
+function nav(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'"))n.classList.add('active');});
+  document.getElementById('pageTitle').textContent=pageTitles[id]||id.toUpperCase();
+  if(id==='items') renderItems();
+  if(id==='vendors') renderVendors();
+  if(id==='trends'){renderTrends();renderSparkline();loadHistory('chicken');}
+  if(id==='invoices') renderInvoices();
+  if(id==='review') renderReview();
+  if(id==='aliases') renderAliases();
+  if(id==='export') renderExport();
+  if(id==='settings') renderSettings();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────
+const catCls={meat:'chip-meat',produce:'chip-produce',dairy:'chip-dairy',dry:'chip-dry',seafood:'chip-seafood',beverage:'chip-beverage'};
+const catLbl={meat:'Meat',produce:'Produce',dairy:'Dairy',dry:'Dry',seafood:'Seafood',beverage:'Bev',other:'Other'};
+function chips(cats){return cats.map(c=>`<span class="chip ${catCls[c]||'chip-other'}">${catLbl[c]||c}</span>`).join(' ');}
+function statusChip(s){return `<span class="chip status-${s}">${s}</span>`;}
+function fmt(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function pct(a,b){return b?((a-b)/b*100).toFixed(1):0;}
+
+// ─────────────────────────────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  renderFlags();
+  renderBarChart('catChart',DB.catData);
+  renderBarChart('vendChart',DB.vendData);
+  const tbody=document.getElementById('recentTbody');
+  if(tbody) tbody.innerHTML=DB.invoices.slice(0,6).map(invRow).join('');
+}
+
+function renderFlags(){
+  const c=document.getElementById('flagsContainer');
+  const active=DB.flags.filter(f=>!f.dismissed);
+  document.getElementById('flagCount').textContent=active.length;
+  document.getElementById('flagBtn').textContent='⚑ '+active.length+' FLAGS';
+  if(!c) return;
+  if(!active.length){c.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--green);padding:8px 0;">✓ No active flags</div>';return;}
+  c.innerHTML=active.map((f,i)=>`
+    <div class="flag-item">
+      <div style="font-size:18px;flex-shrink:0;">⚑</div>
+      <div class="flag-body"><div class="flag-main">${f.main}</div><div class="flag-detail">${f.detail}</div></div>
+      <div class="flag-acts">
+        <button class="btn-ghost" onclick="openEdit('${f.inv}')">Review</button>
+        <button class="btn-ghost" onclick="dismissFlag(${i})">Dismiss</button>
+      </div>
+    </div>`).join('');
+}
+
+function dismissFlag(i){
+  DB.flags[i].dismissed=true;
+  renderFlags();
+  toast('Flag dismissed');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// BAR CHARTS
+// ─────────────────────────────────────────────────────────────────────
+function renderBarChart(id,data){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const max=Math.max(...data.map(d=>d.val));
+  el.innerHTML=data.map(d=>`
+    <div class="bar-row">
+      <div class="bar-lbl" title="${d.name}">${d.name.length>12?d.name.substring(0,12)+'…':d.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${d.val/max*100}%;background:${d.color}"><span class="bar-fill-lbl">${d.pct}%</span></div></div>
+      <div class="bar-val">${fmt(d.val/1000).replace('.','.')}k</div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// SPARKLINE
+// ─────────────────────────────────────────────────────────────────────
+function renderSparkline(){
+  const svg=document.getElementById('costSpark');
+  if(!svg) return;
+  const d=DB.monthlyCosts,m=DB.months;
+  const mn=Math.min(...d)-1000,mx=Math.max(...d)+1000;
+  const W=600,H=90,px=36;
+  const x=i=>px+i*(W-2*px)/(d.length-1);
+  const y=v=>H-px-(v-mn)/(mx-mn)*(H-2*px);
+  const pts=d.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+  const area=`M${x(0)},${H} `+d.map((v,i)=>`L${x(i)},${y(v)}`).join(' ')+` L${x(d.length-1)},${H} Z`;
+  svg.innerHTML=`<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c547" stop-opacity=".3"/><stop offset="100%" stop-color="#e8c547" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#sg)"/>
+    <polyline points="${pts}" fill="none" stroke="#e8c547" stroke-width="2"/>
+    ${d.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#080808" stroke="#e8c547" stroke-width="2"/>
+      <text x="${x(i)}" y="${H-1}" text-anchor="middle" fill="#444" font-size="9" font-family="DM Mono">${m[i]}</text>
+      <text x="${x(i)}" y="${y(v)-8}" text-anchor="middle" fill="#888" font-size="9" font-family="DM Mono">${fmt(v/1000).replace('$','')}k</text>`).join('')}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// INVOICES
+// ─────────────────────────────────────────────────────────────────────
+function invRow(inv){
+  return `<tr>
+    <td class="mono" style="font-size:12px">${inv.id}</td>
+    <td><span class="chip chip-vendor">${inv.vendor}</span></td>
+    <td class="mono" style="font-size:11px;color:var(--text2)">${inv.date}</td>
+    <td>${chips(inv.categories)}</td>
+    <td class="mono" style="color:var(--text2)">${inv.items||'—'}</td>
+    <td class="price">${fmt(inv.total)}</td>
+    <td>${statusChip(inv.status)}</td>
+    <td><button class="btn-ghost" onclick="openEdit('${inv.id}')">Edit</button> ${inv.status==='flagged'?'<span style="color:var(--red)">⚑</span>':'<span style="color:var(--green)">✓</span>'}</td>
+  </tr>`;
+}
+
+let invSort='date',invSortDir=-1;
+function sortInv(col){invSort=col;invSortDir*=-1;renderInvoices();}
+
+function renderInvoices(){
+  const vendor=document.getElementById('fVendor')?.value||'';
+  const cat=document.getElementById('fCat')?.value||'';
+  const status=document.getElementById('fStatus')?.value||'';
+  const from=document.getElementById('fFrom')?.value||'';
+  const to=document.getElementById('fTo')?.value||'';
+  let data=[...DB.invoices];
+  if(vendor) data=data.filter(i=>i.vendor===vendor);
+  if(cat) data=data.filter(i=>i.categories.includes(cat));
+  if(status) data=data.filter(i=>i.status===status);
+  if(from) data=data.filter(i=>i.date>=from);
+  if(to) data=data.filter(i=>i.date<=to);
+  data.sort((a,b)=>{
+    let av=a[invSort],bv=b[invSort];
+    return(av<bv?-1:av>bv?1:0)*invSortDir;
+  });
+  const tbody=document.getElementById('invTbody');
+  if(tbody) tbody.innerHTML=data.map(invRow).join('');
+  const total=data.reduce((s,i)=>s+i.total,0);
+  const sum=document.getElementById('invoiceFilterSummary');
+  if(sum) sum.textContent=`${data.length} invoice(s) · Total: ${fmt(total)}${vendor||cat||status||from||to?' — filtered':''}`;
+}
+
+function clearInvoiceFilters(){
+  ['fVendor','fCat','fStatus','fFrom','fTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderInvoices();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// REVIEW QUEUE
+// ─────────────────────────────────────────────────────────────────────
+function renderReview(){
+  const pending=DB.invoices.filter(i=>i.status==='pending'||i.status==='flagged');
+  const container=document.getElementById('reviewContainer');
+  if(!pending.length){
+    container.innerHTML='<div class="empty"><div class="empty-icon">✓</div><div class="empty-txt">ALL CLEAR</div><div class="empty-sub">No invoices pending review</div></div>';
+    return;
+  }
+  container.innerHTML=pending.map(inv=>`
+    <div class="rev-card" id="revcard-${inv.id}">
+      <div class="rev-hdr">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="rev-title">${inv.id}</div>
+          ${statusChip(inv.status)}
+        </div>
+        <button class="btn-primary" style="font-size:14px;padding:8px 18px;letter-spacing:1px;" onclick="openReviewModal('${inv.id}')">OPEN &amp; REVIEW →</button>
+      </div>
+      <div class="rev-meta">
+        <div class="rev-meta-item"><span class="rml">VENDOR: </span><span class="rmv">${inv.vendor}</span></div>
+        <div class="rev-meta-item"><span class="rml">DATE: </span><span class="rmv">${inv.date}</span></div>
+        <div class="rev-meta-item"><span class="rml">TOTAL: </span><span class="rmv" style="color:var(--accent)">${fmt(inv.total)}</span></div>
+        <div class="rev-meta-item"><span class="rml">ITEMS: </span><span class="rmv">${inv.items}</span></div>
+        <div class="rev-meta-item"><span class="rml">CATEGORIES: </span>${chips(inv.categories)}</div>
+      </div>
+      ${inv.status==='flagged'?`<div style="background:var(--red2);border:1px solid rgba(224,82,82,.3);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--red);">⚑ Has flagged items — review before approving</div>`:''}
+      <div style="margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--text3);">Click "Open & Review" to view the invoice side-by-side with line items before approving.</div>
+    </div>`).join('');
+  document.getElementById('reviewBadge').textContent=pending.length;
+}
+
+// ── Sample line items per invoice for demo ──
+const sampleLines = {
+  'INV-0047':[
+    {name:'Beef Tenderloin',cat:'Meat & Poultry',qty:15,unit:'lb',price:32.40,flag:'Price spike +34% vs avg'},
+    {name:'Chicken Breast',cat:'Meat & Poultry',qty:20,unit:'lb',price:68.00,flag:null},
+    {name:'Heavy Cream',cat:'Dairy',qty:4,unit:'qt',price:19.20,flag:null},
+    {name:'Butter',cat:'Dairy',qty:10,unit:'lb',price:41.00,flag:null},
+    {name:'Mozzarella',cat:'Dairy',qty:8,unit:'lb',price:47.20,flag:null},
+  ],
+  'INV-0045':[
+    {name:'Roma Tomatoes',cat:'Produce',qty:25,unit:'',price:30.00,flag:'Missing unit (lb or case?)'},
+    {name:'Russet Potatoes',cat:'Produce',qty:50,unit:'lb',price:22.50,flag:null},
+    {name:'Mixed Greens',cat:'Produce',qty:6,unit:'case',price:48.00,flag:null},
+  ],
+  'INV-2291':[
+    {name:'Chicken Breast',cat:'Meat & Poultry',qty:30,unit:'lb',price:94.50,flag:null},
+    {name:'All-Purpose Flour',cat:'Dry Goods',qty:50,unit:'lb',price:31.00,flag:null},
+    {name:'Olive Oil',cat:'Dry Goods',qty:4,unit:'gallon',price:88.00,flag:null},
+  ],
+  'INV-0038':[
+    {name:'Beef Tenderloin',cat:'Meat & Poultry',qty:12,unit:'lb',price:346.80,flag:null},
+    {name:'Chicken Wings',cat:'Meat & Poultry',qty:40,unit:'lb',price:120.00,flag:null},
+    {name:'All-Purpose Flour',cat:'Dry Goods',qty:100,unit:'lb',price:62.00,flag:null},
+    {name:'Panko Breadcrumbs',cat:'Dry Goods',qty:20,unit:'lb',price:36.00,flag:null},
+  ],
+};
+
+let revInvId=null;
+let imgZoom=1, imgRotate=0;
+
+function openReviewModal(id){
+  revInvId=id;
+  const inv=DB.invoices.find(i=>i.id===id);
+  if(!inv) return;
+  imgZoom=1; imgRotate=0;
+
+  document.getElementById('revModalTitle').textContent='REVIEW — '+id;
+  document.getElementById('revModalStatus').innerHTML=statusChip(inv.status);
+  document.getElementById('revModalVendor').textContent=inv.vendor+' · '+inv.date;
+  document.getElementById('revOrigTotal').textContent=inv.total?fmt(inv.total):'—';
+  document.getElementById('revFileStatus').textContent='No file attached — upload photo or PDF to cross-reference';
+  document.getElementById('revNotes').value='';
+
+  // Reset tax/fees fields
+  const subEl=document.getElementById('revSubtotal');
+  const taxEl=document.getElementById('revTax');
+  const feesEl=document.getElementById('revFees');
+  if(subEl){subEl.value='';subEl._userEdited=false;}
+  if(taxEl) taxEl.value='';
+  if(feesEl) feesEl.value='';
+
+  // Reset panel to open
+  revPanelOpen=true;
+  const panel=document.getElementById('revLeftPanel');
+  if(panel) panel.classList.remove('collapsed');
+  const icon=document.getElementById('revPanelToggleIcon');
+  const lbl=document.getElementById('revPanelLabel');
+  if(icon) icon.textContent='▼';
+  if(lbl) lbl.textContent='Invoice Image / PDF';
+
+  // Reset image area to clean placeholder
+  const imgArea=document.getElementById('revImgArea');
+  if(imgArea) imgArea.innerHTML=`
+    <div class="rev-img-placeholder" id="revImgPlaceholder" onclick="document.getElementById('revFileIn').click()">
+      <div style="font-size:36px;">📄</div>
+      <div style="font-family:var(--display);font-size:18px;letter-spacing:2px;color:var(--text2);">ATTACH INVOICE</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);">Click to upload photo or PDF</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;">JPG · PNG · PDF supported</div>
+      <input type="file" id="revFileIn" style="display:none" accept="image/*,.pdf" onchange="loadRevFile(this)">
+    </div>
+    <img id="revImgReal" class="rev-img-real" alt="Invoice" style="display:none;max-width:100%;border-radius:4px;transform-origin:top center;">`;
+
+  // Auto-load stored file if we already have one for this invoice
+  const storedFile=getInvoiceFile(id);
+  if(storedFile){
+    setTimeout(()=>showInvoiceFile(storedFile),100);
+  } else {
+    document.getElementById('revFileStatus').textContent='No file — click 📎 above or upload now';
+  }
+
+  // Remove old re-read button
+  const oldBtn=document.getElementById('rereadBtn');
+  if(oldBtn) oldBtn.remove();
+
+  // Load line items
+  const lines=sampleLines[id]||[
+    {name:'',cat:'',qty:'',unit:'lb',price:'',flag:null},
+    {name:'',cat:'',qty:'',unit:'lb',price:'',flag:null},
+  ];
+  renderRevLines(lines);
+
+  // Show flags
+  const flags=DB.flags.filter(f=>f.inv===id&&!f.dismissed);
+  const flagsEl=document.getElementById('revFlagsList');
+  if(flagsEl) flagsEl.innerHTML=flags.length?flags.map(f=>`
+    <div style="background:var(--red2);border:1px solid rgba(224,82,82,.3);border-radius:4px;padding:8px 12px;margin-bottom:6px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--red);margin-bottom:2px;">⚑ FLAG</div>
+      <div style="font-size:12px;">${f.main}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;">${f.detail||''}</div>
+    </div>`).join(''):'';
+
+  document.getElementById('reviewModal').classList.add('open');
+  updateRevTotal(inv.total);
+}
+
+function renderRevLines(lines){
+  const container=document.getElementById('revLineItems');
+  container.innerHTML='';
+  lines.forEach((l,i)=>{
+    const lineTotal=((parseFloat(l.qty)||0)*(parseFloat(l.price)||0)).toFixed(2);
+    const row=document.createElement('div');
+    row.className='rev-line-row'+(l.flag?' flagged':'');
+    row.innerHTML=`
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <input class="fi" style="font-size:12px;" type="text" value="${l.name||''}" oninput="calcRevLineTotal(this)">
+        ${l.flag?`<span class="flag-pill">⚑ ${l.flag}</span>`:''}
+      </div>
+      <select class="fi" style="font-size:10px;">
+        ${['Meat & Poultry','Produce','Dairy','Dry Goods','Seafood','Beverages','Other'].map(o=>`<option${o===l.cat?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input class="fi" style="font-size:12px;text-align:center;" type="number" value="${l.qty||''}" min="0" step="0.01" oninput="calcRevLineTotal(this)">
+      <select class="fi" style="font-size:10px;">
+        ${['lb','kg','case','each','oz','gallon','qt','dozen'].map(o=>`<option${o===l.unit?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <div style="display:flex;align-items:center;gap:2px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">$</span>
+        <input class="fi" style="font-size:12px;font-family:var(--mono);" type="number" value="${l.price||''}" step="0.01" oninput="calcRevLineTotal(this)">
+      </div>
+      <div style="display:flex;align-items:center;gap:2px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">$</span>
+        <input class="fi rev-line-total" style="font-size:12px;font-family:var(--mono);background:var(--bg4);" type="number" value="${lineTotal>0?lineTotal:''}" step="0.01" oninput="updateRevTotal()">
+      </div>
+      <button class="rm-line" onclick="this.parentElement.remove();updateRevTotal()">✕</button>`;
+    container.appendChild(row);
+  });
+  updateRevTotal();
+}
+
+function addRevLine(){
+  const container=document.getElementById('revLineItems');
+  const row=document.createElement('div');
+  row.className='rev-line-row';
+  row.innerHTML=`
+    <input class="fi" style="font-size:12px;" type="text" placeholder="Item name" oninput="calcRevLineTotal(this)">
+    <select class="fi" style="font-size:10px;">
+      ${['','Meat & Poultry','Produce','Dairy','Dry Goods','Seafood','Beverages','Other'].map(o=>`<option>${o}</option>`).join('')}
+    </select>
+    <input class="fi" style="font-size:12px;text-align:center;" type="number" placeholder="0" step="0.01" oninput="calcRevLineTotal(this)">
+    <select class="fi" style="font-size:10px;">
+      ${['lb','kg','case','each','oz','gallon','qt','dozen'].map(o=>`<option>${o}</option>`).join('')}
+    </select>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">$</span>
+      <input class="fi" style="font-size:12px;font-family:var(--mono);" type="number" placeholder="0.00" step="0.01" oninput="calcRevLineTotal(this)">
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);">$</span>
+      <input class="fi rev-line-total" style="font-size:12px;font-family:var(--mono);background:var(--bg4);" type="number" placeholder="0.00" step="0.01" oninput="updateRevTotal()">
+    </div>
+    <button class="rm-line" onclick="this.parentElement.remove();updateRevTotal()">✕</button>`;
+  container.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function calcRevLineTotal(input){
+  const row=input.closest('.rev-line-row');
+  if(!row) return;
+  const numInputs=row.querySelectorAll('input[type=number]');
+  if(numInputs.length>=3){
+    const qty=parseFloat(numInputs[0].value)||0;
+    const price=parseFloat(numInputs[1].value)||0;
+    numInputs[2].value=qty&&price?(qty*price).toFixed(2):'';
+  }
+  updateRevTotal();
+}
+
+function updateRevTotal(origTotal=null){
+  const inv=DB.invoices.find(i=>i.id===revInvId);
+  const orig=origTotal||(inv?inv.total:0);
+
+  // Sum line totals (3rd number input per row = line total)
+  const rows=document.querySelectorAll('#revLineItems .rev-line-row');
+  let lineSum=0;
+  rows.forEach(row=>{
+    const nums=row.querySelectorAll('input[type=number]');
+    if(nums.length>=3) lineSum+=parseFloat(nums[2].value)||0;
+  });
+
+  // Auto-fill subtotal
+  const subEl=document.getElementById('revSubtotal');
+  if(subEl&&!subEl._userEdited) subEl.value=lineSum.toFixed(2);
+
+  const sub=parseFloat(document.getElementById('revSubtotal')?.value)||lineSum;
+  const tax=parseFloat(document.getElementById('revTax')?.value)||0;
+  const fees=parseFloat(document.getElementById('revFees')?.value)||0;
+  const grandCalc=sub+tax+fees;
+
+  document.getElementById('revFootTotal').textContent=fmt(grandCalc);
+  document.getElementById('revCalcTotal').textContent=fmt(grandCalc);
+
+  const diff=grandCalc-orig;
+  const diffEl=document.getElementById('revTotalDiff');
+  const okEl=document.getElementById('revTotalOk');
+  if(orig>0){
+    if(Math.abs(diff)<0.02){
+      if(diffEl) diffEl.innerHTML='<span style="color:var(--green)">✓ Matches invoice total</span>';
+      if(okEl) okEl.innerHTML='<span style="color:var(--green);font-size:10px;">✓ Totals match</span>';
+    } else {
+      if(diffEl) diffEl.innerHTML=`<span style="color:var(--red)">⚑ ${diff>0?'+':''}${fmt(diff)} vs invoice total ${fmt(orig)}</span>`;
+      if(okEl) okEl.innerHTML=`<span style="color:var(--red);font-size:10px;">⚑ ${diff>0?'+':''}${fmt(diff)} discrepancy</span>`;
+    }
+  }
+}
+
+// Mark subtotal as user-edited so we stop auto-filling it
+document.addEventListener('input', e=>{
+  if(e.target.id==='revSubtotal') e.target._userEdited=true;
+});
+
+async function loadRevFile(input){
+  if(!input.files||!input.files[0]) return;
+  const file=input.files[0];
+  window._currentRevFile = file;
+
+  // Store file tied to this invoice ID
+  if(revInvId) storeInvoiceFile(revInvId, file);
+
+  showInvoiceFile(file);
+}
+
+function showInvoiceFile(file){
+  if(!file) return;
+  document.getElementById('revFileStatus').textContent='📎 '+file.name+' ('+Math.round(file.size/1024)+'KB)';
+
+  // Make sure panel is open
+  if(!revPanelOpen) toggleRevPanel();
+
+  if(file.type.startsWith('image/')){
+    const placeholder = document.getElementById('revImgPlaceholder');
+    const img = document.getElementById('revImgReal');
+    if(placeholder) placeholder.style.display='none';
+    if(img){
+      const reader = new FileReader();
+      reader.onload = e => {
+        img.src = e.target.result;
+        img.style.display='block';
+        img.style.width='100%';
+        img.style.transform=`scale(${imgZoom}) rotate(${imgRotate}deg)`;
+        img.style.transformOrigin='top center';
+        img.style.cursor='zoom-in';
+      };
+      reader.readAsDataURL(file);
+    }
+  } else if(file.type==='application/pdf'){
+    const area = document.getElementById('revImgArea');
+    const objectUrl = URL.createObjectURL(file);
+    area.innerHTML=`
+      <div style="width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:10px;">
+        <div style="background:var(--bg3);border:1px solid var(--green);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--green);flex-shrink:0;">
+          ✓ PDF loaded: ${file.name}
+        </div>
+        <iframe src="${objectUrl}#toolbar=0" style="flex:1;width:100%;min-height:420px;border:none;border-radius:4px;background:#fff;"></iframe>
+        <a href="${objectUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-align:center;padding:4px;">↗ Open in full tab</a>
+      </div>`;
+  }
+}
+
+async function rereadWithAI(file){
+  const btn=document.getElementById('rereadBtn');
+  if(btn){btn.textContent='Reading…';btn.disabled=true;}
+  try {
+    const base64=await fileToBase64(file);
+    const isPDF=file.type==='application/pdf';
+    const content=isPDF?[
+      {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+      {type:'text',text:getInvoicePrompt()}
+    ]:[
+      {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
+      {type:'text',text:getInvoicePrompt()}
+    ];
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':getAnthropicKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content}]})
+    });
+    const data=await response.json();
+    const text=data.content?.[0]?.text||'';
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    // Re-populate line items
+    document.getElementById('revLineItems').innerHTML='';
+    const inv=DB.invoices.find(i=>i.id===revInvId);
+    renderRevLines((parsed.line_items||[]).map(l=>({
+      name:l.name||'',cat:l.category||'',qty:l.quantity||0,unit:l.unit||'lb',price:l.unit_price||0,flag:null
+    })));
+    if(parsed.invoice_number && inv) inv.id=parsed.invoice_number;
+    toast(`✓ AI re-read invoice — ${(parsed.line_items||[]).length} items extracted!`);
+    if(btn){btn.textContent='✓ Done';btn.style.color='var(--green)';}
+  } catch(e){
+    toast('Re-read failed: '+e.message,'err');
+    if(btn){btn.textContent='⚡ Re-read with AI';btn.disabled=false;}
+  }
+}
+
+function zoomImg(delta){
+  imgZoom=Math.max(0.4,Math.min(4,imgZoom+delta));
+  const img=document.getElementById('revImgReal');
+  if(img&&img.style.display!=='none') img.style.transform=`scale(${imgZoom}) rotate(${imgRotate}deg)`;
+}
+
+function rotateImg(){
+  imgRotate=(imgRotate+90)%360;
+  const img=document.getElementById('revImgReal');
+  if(img&&img.style.display!=='none') img.style.transform=`scale(${imgZoom}) rotate(${imgRotate}deg)`;
+}
+
+function flagRevInvoice(){
+  toast('Invoice flagged for follow-up','err');
+  closeM('reviewModal');
+}
+
+async function approveFromModal(){
+  const inv=DB.invoices.find(i=>i.id===revInvId);
+  if(!inv) return;
+
+  // Collect line items from the modal
+  const rows=document.querySelectorAll('#revLineItems .rev-line-row');
+  const lineItems=[];
+  rows.forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const selects=row.querySelectorAll('select');
+    const name=inputs[0]?.value||'';
+    const cat=selects[0]?.value||'';
+    const qty=parseFloat(inputs[1]?.value)||0;
+    const unit=selects[1]?.value||'';
+    const price=parseFloat(inputs[2]?.value)||0;
+    if(name) lineItems.push({
+      raw_name:name, item_name:name, category:cat,
+      quantity:qty, unit, unit_price:price,
+    });
+  });
+
+  // Save to Supabase if connected
+  if(SUPABASE_ANON !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1aWFrY2dxYXpubnFldmJnZ2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDQ1MDAsImV4cCI6MjA5MjYyMDUwMH0.Dr_5YiJsCqfimYumKeJVGLveh2wOZTH4zmIuGwsQBcI'){
+    const notes=document.getElementById('revNotes')?.value||'';
+    await dbApproveAndSaveInvoice({
+      invoice_number: inv.id,
+      vendor_id: null,
+      invoice_date: inv.date,
+      total: inv.total,
+      notes,
+    }, lineItems, inv.vendor);
+  }
+
+  // Update local state
+  inv.status='approved';
+  const card=document.getElementById('revcard-'+revInvId);
+  if(card){card.style.opacity='0.35';card.style.pointerEvents='none';}
+  closeM('reviewModal');
+  toast('✓ Invoice '+revInvId+' approved and saved!');
+  const rem=DB.invoices.filter(i=>i.status==='pending'||i.status==='flagged').length;
+  document.getElementById('reviewBadge').textContent=rem;
+  document.getElementById('flagBtn').textContent='⚑ '+DB.flags.filter(f=>!f.dismissed).length+' FLAGS';
+}
+
+function approveInv(id,btn){
+  const inv=DB.invoices.find(i=>i.id===id);
+  if(inv) inv.status='approved';
+  const card=document.getElementById('revcard-'+id);
+  if(card){card.style.opacity='0.35';card.style.pointerEvents='none';}
+  if(btn){btn.textContent='✓ APPROVED';btn.disabled=true;}
+  toast('Invoice '+id+' approved and saved to database!');
+  const rem=DB.invoices.filter(i=>i.status==='pending'||i.status==='flagged').length;
+  document.getElementById('reviewBadge').textContent=rem;
+  document.getElementById('flagBtn').textContent='⚑ '+DB.flags.filter(f=>!f.dismissed).length+' FLAGS';
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ITEMS
+// ─────────────────────────────────────────────────────────────────────
+let currentCat='all';
+function setCat(btn,cat){
+  currentCat=cat;
+  document.querySelectorAll('#page-items .filter-bar .btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderItems();
+}
+
+function renderItems(){
+  const el=document.getElementById('itemsList');
+  if(!el) return;
+  const items=currentCat==='all'?DB.items:DB.items.filter(i=>i.cat===currentCat);
+  if(!items.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-txt">NO ITEMS</div></div>';return;}
+  el.innerHTML=items.map(item=>{
+    const best=Math.min(...item.vendors.map(v=>v.price));
+    return `<div class="ic-wrap">
+      <div class="ic-hdr" onclick="toggleIC(this)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="ic-name">${item.name}</div>
+          <span class="chip ${catCls[item.cat]||'chip-other'}">${catLbl[item.cat]||item.cat}</span>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center">
+          <span class="ic-meta">${item.vendors.length} vendor${item.vendors.length>1?'s':''}</span>
+          <span class="ic-meta">Best: <span style="color:var(--green)">${fmt(best)}/${item.vendors[0].unit}</span></span>
+          <span class="ic-meta">▾</span>
+        </div>
+      </div>
+      <div class="ic-body">
+        ${item.vendors.map(v=>`<div class="vpr">
+          <span class="chip chip-vendor">${v.v}</span>
+          <span class="price ${v.price===best?'best':''}">${fmt(v.price)}/${v.unit}${v.price===best?'<span class="best-badge">★ BEST</span>':''}</span>
+          <span class="${v.price===best?'t-dn':'t-up'}">${v.price===best?'best price':'+'+((((v.price-best)/best)*100).toFixed(1))+'% vs best'}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleIC(hdr){hdr.nextElementSibling.classList.toggle('open');}
+
+// ─────────────────────────────────────────────────────────────────────
+// VENDORS
+// ─────────────────────────────────────────────────────────────────────
+function renderVendors(){
+  const grid=document.getElementById('vendorCards');
+  if(grid) grid.innerHTML=DB.vendors.map(v=>`
+    <div class="vcard">
+      <div class="vcard-name">${v.name}</div>
+      <div class="vcard-since">Since ${v.since}</div>
+      <div class="vcard-stats">
+        <div class="vstat"><div class="vstat-val">$${(v.spend/1000).toFixed(1)}k</div><div class="vstat-lbl">YTD Spend</div></div>
+        <div class="vstat"><div class="vstat-val">${v.invoices}</div><div class="vstat-lbl">Invoices</div></div>
+        <div class="vstat"><div class="vstat-val">$${v.avgInv}</div><div class="vstat-lbl">Avg Inv</div></div>
+        <div class="vstat"><div class="vstat-val" style="color:${v.priceInc>3?'var(--red)':'var(--accent)'}">${v.priceInc}</div><div class="vstat-lbl">Price Inc</div></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">${v.categories.map(c=>`<span class="chip ${catCls[c]||'chip-other'}">${catLbl[c]||c}</span>`).join('')}</div>
+    </div>`).join('');
+
+  const tbody=document.getElementById('vendorTbody');
+  if(tbody) tbody.innerHTML=DB.vendors.map(v=>`<tr>
+    <td><span class="chip chip-vendor">${v.name}</span></td>
+    <td class="price">${fmt(v.spend)}</td>
+    <td class="mono">${v.invoices}</td>
+    <td class="price">${fmt(v.avgInv)}</td>
+    <td class="mono" style="color:${v.priceInc>3?'var(--red)':'var(--text2)'}">${v.priceInc} inc</td>
+    <td style="color:var(--text2)">${v.bestFor}</td>
+    <td><button class="btn-ghost" onclick="toast('Loading ${v.name} history…')">History</button></td>
+  </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// TRENDS
+// ─────────────────────────────────────────────────────────────────────
+function renderTrends(){
+  renderBarChart('yoyCat',DB.catData.map(d=>({...d,pct:Math.round(d.pct*0.08)})));
+  renderBarChart('vendTrend',DB.vendData);
+  const tbody=document.getElementById('trendTbody');
+  if(!tbody) return;
+  const rows=[
+    {item:'Beef Tenderloin',vendor:'SYSCO',cat:'meat',prev:26.50,curr:32.40,date:'Apr 22'},
+    {item:'Salmon Fillet',vendor:'US Foods',cat:'seafood',prev:12.00,curr:12.80,date:'Apr 17'},
+    {item:'Heavy Cream',vendor:'Empire Dairy',cat:'dairy',prev:4.60,curr:4.80,date:'Apr 15'},
+    {item:'Butter (lb)',vendor:'Empire Dairy',cat:'dairy',prev:3.60,curr:3.80,date:'Apr 12'},
+    {item:'Roma Tomatoes',vendor:'Produce Pro',cat:'produce',prev:1.10,curr:1.20,date:'Apr 20'},
+    {item:'Shrimp 16/20',vendor:'US Foods',cat:'seafood',prev:9.10,curr:9.40,date:'Apr 17'},
+    {item:'Chicken Breast',vendor:'GFS',cat:'meat',prev:3.10,curr:3.15,date:'Apr 08'},
+  ];
+  tbody.innerHTML=rows.map(r=>{
+    const chg=pct(r.curr,r.prev);
+    const sig=parseFloat(chg)>=10;
+    return `<tr>
+      <td>${r.item}${sig?'<span style="color:var(--red);margin-left:6px;">⚑</span>':''}</td>
+      <td><span class="chip chip-vendor">${r.vendor}</span></td>
+      <td><span class="chip ${catCls[r.cat]||''}">${catLbl[r.cat]||r.cat}</span></td>
+      <td class="price" style="color:var(--text2)">${fmt(r.prev)}</td>
+      <td class="price">${fmt(r.curr)}</td>
+      <td class="${sig?'t-up':parseFloat(chg)<0?'t-dn':'t-eq'}">+${chg}%</td>
+      <td>${sig?`<span style="background:var(--red2);color:var(--red);border-radius:3px;padding:2px 7px;font-family:var(--mono);font-size:10px;">SIGNIFICANT</span>`:`<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">Normal</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function loadHistory(item){
+  const data=DB.priceHistory[item];
+  const el=document.getElementById('phList');
+  if(!data||!el) return;
+  el.innerHTML=data.map((d,i)=>{
+    const prev=i>0?data[i-1].price:d.price;
+    const cls=d.price>prev?'up':d.price<prev?'dn':'eq';
+    const chg=i>0?((d.price-prev)/prev*100).toFixed(1):'—';
+    return `<div class="ph-row ${cls}">
+      <span class="mono" style="font-size:12px">${d.date} 2025</span>
+      <span class="chip chip-vendor">${d.vendor}</span>
+      <span class="price">${fmt(d.price)}</span>
+      <span class="${cls==='up'?'t-up':cls==='dn'?'t-dn':'t-eq'}">${i>0?(cls==='up'?'↑':cls==='dn'?'↓':'→')+' '+chg+'%':'baseline'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ALIASES
+// ─────────────────────────────────────────────────────────────────────
+function renderAliases(){
+  const tbody=document.getElementById('aliasTbody');
+  if(!tbody) return;
+  tbody.innerHTML=DB.aliases.map((a,i)=>`<tr>
+    <td><span class="chip chip-vendor">${a.vendor}</span></td>
+    <td><span class="alias-pill">${a.raw}</span></td>
+    <td style="color:var(--text);font-weight:500">→ ${a.canonical}</td>
+    <td><span class="chip ${catCls[a.cat?.toLowerCase().split(' ')[0]]||'chip-other'}">${a.cat}</span></td>
+    <td><span class="conf-dot ${a.conf}"></span><span style="font-family:var(--mono);font-size:10px;color:var(--text2)">${a.conf}</span></td>
+    <td>
+      <button class="btn-ghost" onclick="editAlias(${i})">Edit</button>
+      <button class="btn-ghost btn-danger" onclick="deleteAlias(${i})">Delete</button>
+    </td>
+  </tr>`).join('');
+}
+
+function deleteAlias(i){DB.aliases.splice(i,1);renderAliases();toast('Alias removed');}
+function editAlias(i){toast('Editing alias: '+DB.aliases[i].raw);}
+function openAddAlias(){toast('Add alias form — coming soon!');}
+
+// ─────────────────────────────────────────────────────────────────────
+// QUERY ENGINE
+// ─────────────────────────────────────────────────────────────────────
+let qFilters={vendors:[],categories:[],items:[]};
+
+function addQTag(type,sel){
+  const val=sel.value;
+  if(!val) return;
+  sel.value='';
+  const key=type+'s';
+  if(qFilters[key]&&!qFilters[key].includes(val)) qFilters[key].push(val);
+  renderQTags();
+}
+
+function renderQTags(){
+  const container=document.getElementById('qTags');
+  const ph=document.getElementById('qTagsPlaceholder');
+  const all=[...qFilters.vendors.map(v=>({type:'vendor',val:v,color:'var(--accent)'})),
+             ...qFilters.categories.map(c=>({type:'category',val:c,color:'var(--blue)'})),
+             ...qFilters.items.map(i=>({type:'item',val:i,color:'var(--green)'}))];
+  if(!all.length){
+    container.innerHTML='<span style="font-family:var(--mono);font-size:10px;color:var(--text4);align-self:center;" id="qTagsPlaceholder">No filters — showing all data</span>';
+    return;
+  }
+  container.innerHTML=all.map(t=>`
+    <div class="qe-tag" style="background:rgba(0,0,0,.3);border-color:${t.color}20;color:${t.color};">
+      <span style="font-size:9px;opacity:.6">${t.type}:</span> ${t.val}
+      <span class="qe-tag-remove" onclick="removeQTag('${t.type}','${t.val}')">✕</span>
+    </div>`).join('');
+}
+
+function removeQTag(type,val){
+  const key=type+'s';
+  if(qFilters[key]) qFilters[key]=qFilters[key].filter(v=>v!==val);
+  renderQTags();
+}
+
+function clearQuery(){
+  qFilters={vendors:[],categories:[],items:[]};
+  renderQTags();
+  document.getElementById('qResults').classList.remove('show');
+  document.getElementById('qResultCount').textContent='';
+}
+
+function runQuery(){
+  const from=document.getElementById('qFrom').value;
+  const to=document.getElementById('qTo').value;
+  const status=document.getElementById('qStatus').value;
+  let data=[...DB.invoices];
+  if(from) data=data.filter(i=>i.date>=from);
+  if(to) data=data.filter(i=>i.date<=to);
+  if(qFilters.vendors.length) data=data.filter(i=>qFilters.vendors.includes(i.vendor));
+  if(qFilters.categories.length) data=data.filter(i=>qFilters.categories.some(c=>i.categories.includes(c.toLowerCase().replace(' & poultry','').replace('dry goods','dry'))));
+  if(status) data=data.filter(i=>i.status===status);
+
+  const total=data.reduce((s,i)=>s+i.total,0);
+  const avg=data.length?total/data.length:0;
+  const maxInv=data.length?Math.max(...data.map(i=>i.total)):0;
+  const vendors=[...new Set(data.map(i=>i.vendor))];
+
+  document.getElementById('qResultCount').textContent=data.length+' invoices found';
+
+  const sg=document.getElementById('qStatGrid');
+  sg.innerHTML=`
+    <div class="qe-rstat"><div class="qe-rstat-val">${fmt(total)}</div><div class="qe-rstat-lbl">Total Spend</div></div>
+    <div class="qe-rstat"><div class="qe-rstat-val">${data.length}</div><div class="qe-rstat-lbl">Invoices</div></div>
+    <div class="qe-rstat"><div class="qe-rstat-val">${fmt(avg)}</div><div class="qe-rstat-lbl">Avg Invoice</div></div>
+    <div class="qe-rstat"><div class="qe-rstat-val">${fmt(maxInv)}</div><div class="qe-rstat-lbl">Largest Invoice</div></div>
+    <div class="qe-rstat"><div class="qe-rstat-val">${vendors.length}</div><div class="qe-rstat-lbl">Vendors</div></div>
+  `;
+
+  const tbody=document.getElementById('qTableBody');
+  tbody.innerHTML=data.length?data.map(inv=>`<tr>
+    <td class="mono" style="font-size:12px">${inv.id}</td>
+    <td><span class="chip chip-vendor">${inv.vendor}</span></td>
+    <td class="mono" style="font-size:11px;color:var(--text2)">${inv.date}</td>
+    <td>${chips(inv.categories)}</td>
+    <td class="price">${fmt(inv.total)}</td>
+    <td>${statusChip(inv.status)}</td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--text3);padding:20px;">No invoices match these filters</td></tr>';
+
+  // Vendor breakdown
+  const vBreak=vendors.map(v=>({
+    name:v,
+    total:data.filter(i=>i.vendor===v).reduce((s,i)=>s+i.total,0),
+    count:data.filter(i=>i.vendor===v).length
+  })).sort((a,b)=>b.total-a.total);
+
+  const breakdown=document.getElementById('qItemBreakdown');
+  if(vBreak.length>1){
+    const grandTotal=vBreak.reduce((s,v)=>s+v.total,0);
+    breakdown.innerHTML=`<div class="sec-hdr" style="margin-top:10px;"><div class="sec-title" style="font-size:16px;">VENDOR BREAKDOWN</div></div>
+      <div class="bar-chart">${vBreak.map(v=>`
+        <div class="bar-row">
+          <div class="bar-lbl">${v.name.length>12?v.name.substring(0,12)+'…':v.name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${v.total/grandTotal*100}%;background:var(--accent)">
+            <span class="bar-fill-lbl">${(v.total/grandTotal*100).toFixed(0)}%</span>
+          </div></div>
+          <div class="bar-val">${fmt(v.total/1000)}k</div>
+        </div>`).join('')}
+      </div>`;
+  } else { breakdown.innerHTML=''; }
+
+  document.getElementById('qResults').classList.add('show');
+}
+
+function exportQueryResults(){toast('Exporting query results as CSV…','warn');}
+
+// Quick queries
+function renderQuickQueries(){
+  const queries=[
+    {label:'SYSCO — All Time',desc:'Total spend + invoice history',action:()=>{nav('query');qFilters={vendors:['SYSCO'],categories:[],items:[]};renderQTags();setTimeout(runQuery,100);}},
+    {label:'Meat — April',desc:'All meat purchases this month',action:()=>{nav('query');qFilters={vendors:[],categories:['Meat & Poultry'],items:[]};renderQTags();setTimeout(runQuery,100);}},
+    {label:'Flagged Invoices',desc:'All flagged, any vendor',action:()=>{nav('invoices');setTimeout(()=>{document.getElementById('fStatus').value='flagged';renderInvoices();},100);}},
+    {label:'March vs April',desc:'Cost comparison by month',action:()=>{nav('query');qFilters={vendors:[],categories:[],items:[]};document.getElementById('qFrom').value='2025-03-01';document.getElementById('qTo').value='2025-04-30';setTimeout(runQuery,100);}},
+    {label:'Produce — All Vendors',desc:'Compare produce costs',action:()=>{nav('query');qFilters={vendors:[],categories:['Produce'],items:[]};renderQTags();setTimeout(runQuery,100);}},
+    {label:'Top Vendor Spend',desc:'Ranked by total spend YTD',action:()=>nav('vendors')},
+    {label:'Price Spikes',desc:'Items with >10% increase',action:()=>nav('trends')},
+    {label:'Pending Review',desc:'Invoices awaiting approval',action:()=>nav('review')},
+  ];
+  const el=document.getElementById('quickQueries');
+  if(el) el.innerHTML=queries.map(q=>`
+    <div class="export-card" onclick="(${q.action.toString()})()">
+      <div class="export-lbl" style="font-size:12px;color:var(--accent);margin-bottom:4px;font-family:var(--display);letter-spacing:1px;">${q.label}</div>
+      <div class="export-lbl" style="font-size:10px;color:var(--text3)">${q.desc}</div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────────────────────────────
+function renderExport(){
+  const exports=[
+    {icon:'📋',label:'All Invoices (CSV)'},
+    {icon:'🏷️',label:'Item Price History'},
+    {icon:'🏪',label:'Vendor Summary'},
+    {icon:'📊',label:'Category Breakdown'},
+    {icon:'⚑',label:'Flagged Items Log'},
+    {icon:'📈',label:'Price Trends Report'},
+    {icon:'📅',label:'Monthly Cost Summary'},
+    {icon:'⚖️',label:'Vendor Comparison'},
+    {icon:'🗂️',label:'Custom Query Export'},
+    {icon:'🧾',label:'Invoice Files (ZIP)'},
+  ];
+  const grid=document.getElementById('exportGrid');
+  if(grid) grid.innerHTML=exports.map(e=>`
+    <div class="export-card" onclick="toast('Exporting: ${e.label}','warn')">
+      <div class="export-icon">${e.icon}</div>
+      <div class="export-lbl">${e.label}</div>
+    </div>`).join('');
+
+  const tbody=document.getElementById('fileTbody');
+  if(tbody) tbody.innerHTML=DB.invoices.slice(0,10).map((inv,i)=>`<tr>
+    <td class="mono">${inv.id}</td>
+    <td><span class="chip chip-vendor">${inv.vendor}</span></td>
+    <td class="mono" style="font-size:11px">${inv.date}</td>
+    <td><span style="font-family:var(--mono);font-size:10px;color:${i%3===0?'var(--red)':'var(--blue)'}">${i%3===0?'PDF':'JPG'}</span></td>
+    <td class="mono" style="color:var(--text3)">${(120+Math.random()*180).toFixed(0)}KB</td>
+    <td><button class="btn-ghost" onclick="toast('Opening file…')">Open</button> <button class="btn-ghost" onclick="toast('Downloading…')">Download</button></td>
+  </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// UPLOAD + LINE ITEMS
+// ─────────────────────────────────────────────────────────────────────
+let lineCount=0;
+function openUpload(){
+  document.getElementById('uploadModal').classList.add('open');
+  document.getElementById('lineItems').innerHTML='';
+  lineCount=0;
+  document.getElementById('aiPreview').style.display='none';
+  document.getElementById('aiProc').style.display='none';
+  document.getElementById('uploadZone').style.display='block';
+  document.getElementById('invNum').value='';
+  document.getElementById('invNotes').value='';
+  document.getElementById('invVendor').value='';
+  const d=new Date(); document.getElementById('invDate').value=d.toISOString().split('T')[0];
+  addLine();addLine();addLine();
+  updateTotal();
+}
+
+function addLine(vals={}){
+  lineCount++;
+  const container=document.getElementById('lineItems');
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:2.5fr 1fr 0.6fr 0.6fr 0.9fr 0.9fr auto;gap:6px;margin-bottom:6px;align-items:center;';
+  const lineTotal=vals.qty&&vals.price?(parseFloat(vals.qty)*parseFloat(vals.price)).toFixed(2):'';
+  row.innerHTML=`
+    <input class="fi" type="text" placeholder="Item name" value="${vals.name||''}" style="font-size:12px;" oninput="checkItemMatch(this)">
+    <select class="fi" style="font-size:10px;">
+      ${['','Meat & Poultry','Produce','Dairy','Dry Goods','Seafood','Beverages','Other'].map(o=>`<option${o===vals.cat?' selected':''}>${o}</option>`).join('')}
+    </select>
+    <input class="fi" type="number" placeholder="0" value="${vals.qty||''}" step="0.01" style="font-size:12px;text-align:center;" oninput="calcLineTotal(this)">
+    <select class="fi" style="font-size:10px;">
+      ${['lb','kg','case','each','oz','gallon','qt','dozen'].map(o=>`<option${o===vals.unit?' selected':''}>${o}</option>`).join('')}
+    </select>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text2);">$</span>
+      <input class="fi" type="number" placeholder="0.00" value="${vals.price||''}" step="0.01" style="font-size:12px;font-family:var(--mono);" oninput="calcLineTotal(this)">
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text2);">$</span>
+      <input class="fi line-total-input" type="number" placeholder="0.00" value="${lineTotal}" step="0.01" style="font-size:12px;font-family:var(--mono);background:var(--bg4);" oninput="updateTotal()">
+    </div>
+    <button class="rm-line" onclick="this.parentElement.remove();updateTotal()">✕</button>`;
+  container.appendChild(row);
+}
+
+function calcLineTotal(input){
+  const row=input.closest('div[style*="grid"]');
+  if(!row) return;
+  const nums=row.querySelectorAll('input[type=number]');
+  if(nums.length>=3){
+    const qty=parseFloat(nums[0].value)||0;
+    const price=parseFloat(nums[1].value)||0;
+    nums[2].value=(qty*price).toFixed(2);
+  }
+  updateTotal();
+}
+
+function updateTotal(){
+  // Sum line totals (last number input per row)
+  const rows=document.querySelectorAll('#lineItems > div');
+  let lineSum=0;
+  rows.forEach(row=>{
+    const nums=row.querySelectorAll('input[type=number]');
+    if(nums.length>=3) lineSum+=parseFloat(nums[2].value)||0;
+    else if(nums.length>=1) lineSum+=parseFloat(nums[nums.length-1].value)||0;
+  });
+  // Auto-fill subtotal if empty
+  const subtotalEl=document.getElementById('invSubtotal');
+  if(subtotalEl&&!subtotalEl.value) subtotalEl.value=lineSum.toFixed(2);
+  recalcTotal();
+}
+
+function recalcTotal(){
+  const sub=parseFloat(document.getElementById('invSubtotal')?.value)||0;
+  const tax=parseFloat(document.getElementById('invTax')?.value)||0;
+  const fees=parseFloat(document.getElementById('invFees')?.value)||0;
+  const grand=sub+tax+fees;
+  document.getElementById('invTotal').textContent=fmt(grand);
+  // Check against grand total field
+  const grandInput=parseFloat(document.getElementById('invGrandTotal')?.value)||0;
+  const msgEl=document.getElementById('totalMatchMsg');
+  if(msgEl&&grandInput>0){
+    const diff=grand-grandInput;
+    if(Math.abs(diff)<0.02){
+      msgEl.innerHTML='<span style="color:var(--green)">✓ Calculated total matches invoice grand total</span>';
+    } else {
+      msgEl.innerHTML=`<span style="color:var(--red)">⚑ Difference of ${fmt(Math.abs(diff))} — check line items, tax, or fees</span>`;
+    }
+  }
+}
+
+// Simulate item matching
+function checkItemMatch(input){
+  const val=input.value.trim().toLowerCase();
+  if(val.length<4) return;
+  const known=['chicken breast','beef tenderloin','salmon fillet','roma tomatoes','heavy cream','butter','russet potatoes','all-purpose flour','shrimp','mozzarella'];
+  const match=known.find(k=>k.includes(val)||val.includes(k.split(' ')[0]));
+  if(match && val!==match && !DB.aliases.some(a=>a.raw.toLowerCase()===val)){
+    // Could trigger match modal here — simulated for demo
+    input.style.borderColor='var(--accent)';
+    input.title='Auto-matched to: '+match+' (click to review)';
+  } else {
+    input.style.borderColor='';
+  }
+}
+
+function handleFile(input){if(input.files&&input.files[0]) processFile(input.files[0]);}
+function handleDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processFile(f);}
+
+// ─────────────────────────────────────────────────────────────────────
+// AI INVOICE READING — real Anthropic API
+// ─────────────────────────────────────────────────────────────────────
+async function processFile(file){
+  if(!getAnthropicKey()){
+    toast('No API key — go to Settings first','err');
+    nav('settings');
+    return;
+  }
+  window._currentInvoiceFile = file;
+
+  // Show spinner
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('aiProc').style.display='block';
+  document.getElementById('aiPreview').style.display='none';
+  document.getElementById('lineItems').innerHTML='';
+  lineCount=0;
+
+  const aiTxt=document.querySelector('#aiProc .ai-txt');
+  if(aiTxt) aiTxt.innerHTML='Claude is reading your invoice<span>...</span>';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const isPDF = file.type==='application/pdf';
+
+    // First — detect how many invoices are in this file
+    if(isPDF){
+      if(aiTxt) aiTxt.innerHTML='Detecting number of invoices<span>...</span>';
+      const countResp = await callClaude(base64, file.type, getCountPrompt());
+      let countData;
+      try { countData = JSON.parse(countResp.replace(/```json|```/g,'').trim()); } catch(e){ countData={count:1}; }
+
+      if(countData.count > 1){
+        // Multi-invoice PDF — close upload modal and go to split review
+        document.getElementById('aiProc').style.display='none';
+        document.getElementById('uploadZone').style.display='block';
+        closeM('uploadModal');
+        await processMultiInvoicePDF(file, base64, countData.count);
+        return;
+      }
+    }
+
+    // Single invoice — read normally
+    if(aiTxt) aiTxt.innerHTML='Claude is reading your invoice<span>...</span>';
+    const text = await callClaude(base64, file.type, getSingleInvoicePrompt());
+    let parsed;
+    try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch(e){ throw new Error('Could not parse AI response — try again'); }
+
+    // Fill form
+    document.getElementById('aiProc').style.display='none';
+    document.getElementById('uploadZone').style.display='block';
+    fillInvoiceForm(parsed);
+    toast(`✓ Claude extracted ${(parsed.line_items||[]).length} line items!`);
+
+  } catch(err){
+    document.getElementById('aiProc').style.display='none';
+    document.getElementById('uploadZone').style.display='block';
+    toast('AI reading failed: '+err.message,'err');
+    addLine();addLine();addLine();
+  }
+}
+
+// ── Call Claude API ──
+async function callClaude(base64, mimeType, prompt, maxTokens=3000){
+  const isPDF = mimeType==='application/pdf';
+  const content = isPDF ? [
+    {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+    {type:'text', text:prompt}
+  ] : [
+    {type:'image', source:{type:'base64', media_type:mimeType||'image/jpeg', data:base64}},
+    {type:'text', text:prompt}
+  ];
+  const response = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':getAnthropicKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-opus-4-5', max_tokens:maxTokens, messages:[{role:'user',content}]})
+  });
+  if(!response.ok){ const e=await response.json(); throw new Error(e.error?.message||'API error'); }
+  const data = await response.json();
+  return data.content?.[0]?.text||'';
+}
+
+// ── Multi-invoice PDF processing ──
+async function processMultiInvoicePDF(file, base64, count){
+  toast(`Found ${count} invoices — splitting now...`,'warn');
+
+  // Show a processing overlay on the review queue page
+  nav('review');
+  const container = document.getElementById('reviewContainer');
+  container.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid var(--accent);border-radius:var(--r);padding:24px;text-align:center;">
+      <div class="ai-spin" style="margin:0 auto 14px;"></div>
+      <div style="font-family:var(--display);font-size:22px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;">SPLITTING ${count} INVOICES</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">Claude is reading each invoice separately — please wait...</div>
+      <div id="splitProgress" style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:10px;"></div>
+    </div>`;
+
+  try {
+    const progressEl = document.getElementById('splitProgress');
+    const text = await callClaude(base64, file.type, getMultiInvoicePrompt(count), 6000);
+    let parsed;
+    try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); }
+    catch(e){ throw new Error('Could not parse split response'); }
+
+    const invoices = parsed.invoices||[];
+    if(progressEl) progressEl.textContent=`Extracted ${invoices.length} invoices — building review cards...`;
+
+    // Add each extracted invoice to DB as pending
+    invoices.forEach((inv,i)=>{
+      const flags=[];
+
+      // Flag if missing critical info
+      if(!inv.invoice_number) flags.push('Missing invoice number');
+      if(!inv.invoice_date)   flags.push('Missing invoice date');
+      if(!inv.vendor)         flags.push('Vendor not detected');
+      if(!inv.line_items||inv.line_items.length===0) flags.push('No line items found — page may be missing or unreadable');
+      if(inv.incomplete)      flags.push('Page appears incomplete or cut off');
+
+      const newInv = {
+        id: inv.invoice_number||`SPLIT-${Date.now()}-${i+1}`,
+        vendor: inv.vendor||'Unknown Vendor',
+        date: inv.invoice_date||new Date().toISOString().split('T')[0],
+        total: inv.total||0,
+        items: (inv.line_items||[]).length,
+        categories: guessCats(inv.line_items||[]),
+        status: flags.length ? 'flagged' : 'pending',
+        _lineItems: inv.line_items||[],
+        _flags: flags,
+        _pageRef: inv.page_numbers||`Invoice ${i+1} of ${invoices.length}`,
+      };
+      DB.invoices.unshift(newInv);
+
+      // Add flags to DB.flags
+      flags.forEach(f=>{
+        DB.flags.push({main:f, detail:`${newInv.vendor} · ${newInv.id} · ${newInv._pageRef}`, inv:newInv.id, type:'missing'});
+      });
+    });
+
+    // Store line items for review modal
+    invoices.forEach((inv,i)=>{
+      const id = inv.invoice_number||`SPLIT-${Date.now()}-${i+1}`;
+      sampleLines[DB.invoices[i].id] = (inv.line_items||[]).map(l=>({
+        name:l.name||'', cat:l.category||'', qty:l.quantity||0, unit:l.unit||'lb', price:l.unit_price||0,
+        flag: l.flag_reason||null
+      }));
+    });
+
+    // Update flag badge
+    const flagCount=DB.flags.filter(f=>!f.dismissed).length;
+    document.getElementById('flagBtn').textContent=`⚑ ${flagCount} FLAGS`;
+    document.getElementById('reviewBadge').textContent=DB.invoices.filter(i=>i.status==='pending'||i.status==='flagged').length;
+
+    renderReview();
+    toast(`✓ Split into ${invoices.length} invoices — review each one below!`);
+
+  } catch(err){
+    container.innerHTML=`<div class="empty"><div class="empty-icon">⚑</div><div class="empty-txt">SPLIT FAILED</div><div class="empty-sub">${err.message} — try uploading individual invoices</div></div>`;
+    toast('Split failed: '+err.message,'err');
+  }
+}
+
+function guessCats(lineItems){
+  const cats=new Set();
+  lineItems.forEach(l=>{
+    const cat=(l.category||'').toLowerCase();
+    if(cat.includes('meat')||cat.includes('poultry')) cats.add('meat');
+    else if(cat.includes('produce')) cats.add('produce');
+    else if(cat.includes('dairy')) cats.add('dairy');
+    else if(cat.includes('dry')) cats.add('dry');
+    else if(cat.includes('seafood')) cats.add('seafood');
+    else if(cat.includes('bev')) cats.add('beverage');
+  });
+  return cats.size ? [...cats] : ['other'];
+}
+
+function fillInvoiceForm(parsed){
+  if(parsed.vendor){
+    const sel=document.getElementById('invVendor');
+    const opts=Array.from(sel.options).map(o=>o.value.toLowerCase());
+    if(opts.includes(parsed.vendor.toLowerCase())){
+      sel.value=parsed.vendor;
+    } else {
+      const opt=document.createElement('option');
+      opt.value=parsed.vendor; opt.textContent=parsed.vendor;
+      sel.insertBefore(opt,sel.lastElementChild);
+      sel.value=parsed.vendor;
+    }
+  }
+  if(parsed.invoice_number) document.getElementById('invNum').value=parsed.invoice_number;
+  if(parsed.invoice_date)   document.getElementById('invDate').value=parsed.invoice_date;
+  if(parsed.notes)          document.getElementById('invNotes').value=parsed.notes;
+  // Subtotal / Tax / Fees / Total
+  if(parsed.subtotal!=null) document.getElementById('invSubtotal').value=parsed.subtotal;
+  if(parsed.tax!=null)      document.getElementById('invTax').value=parsed.tax;
+  if(parsed.fees!=null)     document.getElementById('invFees').value=parsed.fees;
+  if(parsed.total!=null)    document.getElementById('invGrandTotal').value=parsed.total;
+
+  const items=parsed.line_items||[];
+  items.forEach(item=>addLine({
+    name:item.name||'',cat:item.category||'',
+    qty:item.quantity||'',unit:item.unit||'',
+    price:item.unit_price||item.price||'',
+  }));
+  document.getElementById('aiCount').textContent=items.length;
+  document.getElementById('aiPreview').style.display='block';
+  recalcTotal();
+  const ambiguous=items.filter(i=>!i.category||i.category==='');
+  if(ambiguous.length){
+    setTimeout(()=>{
+      const suggestions=suggestMatches(ambiguous[0].name);
+      if(suggestions.length) openMatchModal(ambiguous[0].name,parsed.vendor||'',suggestions);
+    },600);
+  }
+}
+
+// ── Prompts ──
+function getCountPrompt(){
+  return `Look at this PDF and count how many SEPARATE invoices are in it. Each invoice is from a different vendor or has a different invoice number/date.
+
+Return ONLY this JSON, nothing else:
+{"count": 2, "vendors": ["SYSCO", "Produce Pro"]}
+
+If there is just one invoice return {"count": 1, "vendors": []}`;
+}
+
+function getSingleInvoicePrompt(){
+  return `You are an expert at reading restaurant invoices. Extract all information and return ONLY a JSON object.
+
+{
+  "vendor": "vendor company name",
+  "invoice_number": "invoice number or null",
+  "invoice_date": "YYYY-MM-DD or null",
+  "subtotal": 1200.00,
+  "tax": 45.00,
+  "fees": 10.00,
+  "total": 1255.00,
+  "notes": "any notes or null",
+  "line_items": [
+    {
+      "name": "item name as on invoice",
+      "category": "Meat & Poultry, Produce, Dairy, Dry Goods, Seafood, Beverages, or Other",
+      "quantity": 10.5,
+      "unit": "lb or kg or case or each or oz or gallon or qt or dozen",
+      "unit_price": 3.99,
+      "line_total": 41.90,
+      "flag_reason": null
+    }
+  ]
+}
+
+Rules:
+- Extract EVERY line item, no matter how abbreviated
+- unit_price = price per single unit, line_total = qty × unit_price
+- subtotal = sum of all line items before tax/fees
+- tax = any sales tax or GST
+- fees = delivery fees, fuel surcharges, any other charges
+- total = subtotal + tax + fees (the grand total on the invoice)
+- If a value is unclear use null
+- If a line item price seems unusual set flag_reason to a short explanation
+- Return ONLY the JSON, nothing else`;
+}
+
+function getMultiInvoicePrompt(count){
+  return `This PDF contains ${count} separate invoices. Extract each one individually and return ONLY this JSON:
+
+{
+  "invoices": [
+    {
+      "vendor": "vendor name",
+      "invoice_number": "invoice number or null",
+      "invoice_date": "YYYY-MM-DD or null",
+      "total": 1234.56,
+      "page_numbers": "pages 1-2",
+      "incomplete": false,
+      "notes": "any notes or null",
+      "line_items": [
+        {
+          "name": "item name",
+          "category": "Meat & Poultry, Produce, Dairy, Dry Goods, Seafood, Beverages, or Other",
+          "quantity": 10.5,
+          "unit": "lb",
+          "unit_price": 3.99,
+          "line_total": 39.90,
+          "flag_reason": null
+        }
+      ]
+    }
+  ]
+}
+
+Critical rules:
+- Separate EVERY distinct invoice into its own object
+- If an invoice appears cut off or a page seems missing, set "incomplete": true
+- If a line item price seems unusual, set flag_reason to explain why
+- If vendor name, invoice number, or date is missing, leave as null (it will be flagged)
+- Return ONLY the JSON, nothing else`;
+}
+
+function getInvoicePrompt(){ return getSingleInvoicePrompt(); }
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = ()=> reject(new Error('File read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function suggestMatches(rawName){
+  const name = rawName.toLowerCase();
+  const canonical = DB.items.map(i=>i.name);
+  const suggestions = [];
+  canonical.forEach(c=>{
+    const cLow = c.toLowerCase();
+    const words = cLow.split(' ');
+    const score = words.filter(w=>name.includes(w)||w.includes(name.split(' ')[0])).length;
+    if(score>0) suggestions.push({name:c, cat:DB.items.find(i=>i.name===c)?.cat||'', conf:score>1?'high':'med'});
+  });
+  return suggestions.sort((a,b)=>b.conf.localeCompare(a.conf)).slice(0,3);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ITEM MATCH MODAL
+// ─────────────────────────────────────────────────────────────────────
+let matchCallback=null;
+function openMatchModal(rawName,vendor,suggestions){
+  document.getElementById('matchIncoming').textContent=rawName;
+  document.getElementById('matchVendor').textContent='From: '+vendor;
+  const opts=document.getElementById('matchOptions');
+  opts.innerHTML=suggestions.map((s,i)=>`
+    <div class="match-option" onclick="selectMatchOption(this,${i})">
+      <div><div class="match-option-name">${s.name}</div><div class="match-option-cat">${s.cat}</div></div>
+      <span class="match-conf ${s.conf==='high'?'conf-high':'conf-med'}">${s.conf==='high'?'High match':'Possible match'}</span>
+    </div>`).join('');
+  document.getElementById('matchModal').classList.add('open');
+  matchCallback=()=>{
+    const sel=document.querySelector('.match-option.sel');
+    const newName=document.getElementById('newCanonName').value;
+    const newCat=document.getElementById('newCanonCat').value;
+    if(sel){
+      const idx=parseInt(sel.dataset.idx||0);
+      DB.aliases.push({vendor,raw:rawName,canonical:suggestions[0].name,cat:suggestions[0].cat,conf:'high'});
+      toast('✓ "'+rawName+'" mapped to "'+suggestions[0].name+'"');
+    } else if(newName){
+      DB.aliases.push({vendor,raw:rawName,canonical:newName,cat:newCat,conf:'high'});
+      toast('✓ New item "'+newName+'" created and alias saved');
+    }
+    closeM('matchModal');
+  };
+}
+
+function selectMatchOption(el,i){
+  document.querySelectorAll('.match-option').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  el.dataset.idx=i;
+}
+
+function confirmMatch(){if(matchCallback)matchCallback();}
+function skipMatch(){toast('Skipped — item will be flagged for review','warn');closeM('matchModal');}
+
+// ─────────────────────────────────────────────────────────────────────
+// EDIT MODAL
+// ─────────────────────────────────────────────────────────────────────
+function openEdit(id){
+  document.getElementById('editModalTitle').textContent='EDIT — '+id;
+  document.getElementById('editModal').classList.add('open');
+}
+function saveEdit(){closeM('editModal');toast('Changes saved!');}
+
+// ─────────────────────────────────────────────────────────────────────
+// MISC
+// ─────────────────────────────────────────────────────────────────────
+function submitReview(){
+  const num=document.getElementById('invNum').value||'INV-'+Date.now();
+  const vendor=document.getElementById('invVendor').value||'Unknown';
+  const date=document.getElementById('invDate').value||new Date().toISOString().split('T')[0];
+  const total=parseFloat(document.getElementById('invGrandTotal')?.value)||parseFloat(document.getElementById('invTotal').textContent.replace(/[$,]/g,''))||0;
+
+  // Store the uploaded file tied to this invoice ID so it shows in Review
+  if(window._currentInvoiceFile){
+    storeInvoiceFile(num, window._currentInvoiceFile);
+    window._currentInvoiceFile=null;
+  }
+
+  closeM('uploadModal');
+  DB.invoices.unshift({id:num,vendor,date,total,items:lineCount,categories:['meat'],status:'pending'});
+  document.getElementById('reviewBadge').textContent=DB.invoices.filter(i=>i.status==='pending'||i.status==='flagged').length;
+  toast('Invoice '+num+' submitted — open Review Queue to verify!');
+}
+function saveDraft(){toast('Draft saved!');closeM('uploadModal');}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+
+// Global search
+function globalSearch(val){
+  if(!val||val.length<2) return;
+  const q=val.toLowerCase();
+  const invMatches=DB.invoices.filter(i=>i.id.toLowerCase().includes(q)||i.vendor.toLowerCase().includes(q)).length;
+  const itemMatches=DB.items.filter(i=>i.name.toLowerCase().includes(q)).length;
+  if(invMatches>0) toast('Found '+invMatches+' invoice(s) · '+itemMatches+' item(s) matching "'+val+'"');
+}
+
+// Toast
+let toastTimer;
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// Close modals on backdrop
+document.querySelectorAll('.modal-overlay,.match-modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});
+});
+
+// ── INVOICE FILE STORE — persists files in memory per invoice ID ──
+const invoiceFileStore = {};
+
+function storeInvoiceFile(invoiceId, file){
+  invoiceFileStore[invoiceId] = file;
+}
+
+function getInvoiceFile(invoiceId){
+  return invoiceFileStore[invoiceId]||null;
+}
+
+// ── COLLAPSIBLE PANEL ──
+let revPanelOpen = true;
+function toggleRevPanel(){
+  revPanelOpen = !revPanelOpen;
+  const panel = document.getElementById('revLeftPanel');
+  const icon = document.getElementById('revPanelToggleIcon');
+  const label = document.getElementById('revPanelLabel');
+  if(revPanelOpen){
+    panel.classList.remove('collapsed');
+    if(icon) icon.textContent='▼';
+    if(label) label.textContent='Invoice Image / PDF';
+  } else {
+    panel.classList.add('collapsed');
+    if(icon) icon.textContent='▶';
+    if(label) label.textContent='';
+  }
+}
+// ─────────────────────────────────────────────────────────────────────
+function renderSettings(){
+  const key = getAnthropicKey();
+  const input = document.getElementById('anthropicKeyInput');
+  const status = document.getElementById('apiKeyStatus');
+  if(input) input.value = key;
+  if(status){
+    if(key){
+      status.innerHTML=`<div style="background:var(--green2);border:1px solid rgba(82,201,122,.3);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--green);">✓ API key saved — AI invoice reading is active</div>`;
+    } else {
+      status.innerHTML=`<div style="background:var(--red2);border:1px solid rgba(224,82,82,.3);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--red);">⚑ No API key — paste your key below to enable AI reading</div>`;
+    }
+  }
+  checkAllConnections();
+}
+
+function saveApiKey(){
+  const input = document.getElementById('anthropicKeyInput');
+  const key = input?.value?.trim()||'';
+  if(!key.startsWith('sk-ant-')){
+    toast('Invalid key — should start with sk-ant-','err');
+    return;
+  }
+  setAnthropicKey(key);
+  toast('✓ API key saved to this browser!');
+  renderSettings();
+  // Update sidebar status dot
+  showDBStatus('online');
+}
+
+function clearApiKey(){
+  localStorage.removeItem('ii_anthropic_key');
+  const input = document.getElementById('anthropicKeyInput');
+  if(input) input.value='';
+  toast('API key cleared','warn');
+  renderSettings();
+}
+
+function toggleKeyVisibility(){
+  const input = document.getElementById('anthropicKeyInput');
+  const btn = document.getElementById('toggleKeyBtn');
+  if(!input) return;
+  if(input.type==='password'){
+    input.type='text';
+    if(btn) btn.textContent='Hide';
+  } else {
+    input.type='password';
+    if(btn) btn.textContent='Show';
+  }
+}
+
+async function checkAllConnections(){
+  // Supabase
+  const sbEl = document.getElementById('sbStatus');
+  if(sbEl) sbEl.innerHTML='<span style="color:var(--text3)">Checking…</span>';
+  const sbOk = await checkConnection();
+  if(sbEl) sbEl.innerHTML = sbOk
+    ? '<span style="color:var(--green)">✓ Connected</span>'
+    : '<span style="color:var(--red)">✗ Error</span>';
+
+  // Anthropic
+  const aiEl = document.getElementById('aiStatus');
+  const key = getAnthropicKey();
+  if(aiEl){
+    if(!key){
+      aiEl.innerHTML='<span style="color:var(--text3)">No key saved</span>';
+    } else {
+      aiEl.innerHTML='<span style="color:var(--green)">✓ Key saved</span>';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async ()=>{
+  renderDashboard();
+  renderQuickQueries();
+
+  // Check Supabase connection
+  const connected = await checkConnection();
+  if(connected){
+    showDBStatus('online');
+    await loadDashboardFromDB();
+  } else {
+    showDBStatus('error');
+  }
+
+  // Prompt for API key if not set
+  if(!getAnthropicKey()){
+    setTimeout(()=>{
+      toast('👋 Welcome! Go to Settings ⚙ to add your Anthropic API key to enable AI invoice reading.','warn');
+    }, 1800);
+  }
+});
+
+function showDBStatus(state){
+  const states = {
+    online:  {color:'var(--green)', icon:'⬡', text:'Database connected'},
+    offline: {color:'var(--text3)', icon:'⬡', text:'No API key yet'},
+    error:   {color:'var(--red)',   icon:'⬡', text:'Connection error'},
+  };
+  const s = states[state]||states.offline;
+  // Insert a small status dot in the sidebar footer
+  const foot = document.querySelector('.sidebar-foot');
+  if(!foot) return;
+  let dot = document.getElementById('dbStatusDot');
+  if(!dot){
+    dot = document.createElement('div');
+    dot.id = 'dbStatusDot';
+    dot.style.cssText = 'font-family:var(--mono);font-size:9px;letter-spacing:1px;text-align:center;padding:6px 0 0;';
+    foot.appendChild(dot);
+  }
+  dot.innerHTML = `<span style="color:${s.color}">${s.icon}</span> <span style="color:var(--text3)">${s.text}</span>`;
+}
+</script>
+</body>
+</html>
