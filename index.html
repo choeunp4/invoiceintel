@@ -1226,10 +1226,22 @@ async function loadDashboardFromDB(){
   renderQuickQueries();
 }
 
-// ── INVOICE FILE STORE — top-level so always available ──
+// ── INVOICE FILE STORE — stores base64 data URLs (not File objects which go stale) ──
 const invoiceFileStore = {};
-function storeInvoiceFile(id, file){ if(id&&file){ invoiceFileStore[id]=file; console.log('[FileStore] Saved:',id,file.name); } }
-function getInvoiceFile(id){ const f=invoiceFileStore[id]||null; console.log('[FileStore] Get:',id,'→',f?f.name:'none'); return f; }
+function storeInvoiceFile(id, file){
+  if(!id||!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    invoiceFileStore[id] = { dataUrl: e.target.result, name: file.name, type: file.type };
+    console.log('[FileStore] Saved base64 for:', id, file.name);
+  };
+  reader.readAsDataURL(file);
+}
+function getInvoiceFile(id){
+  const f = invoiceFileStore[id]||null;
+  console.log('[FileStore] Get:', id, '→', f?f.name:'none');
+  return f;
+}
 
 const DB = {
   invoices:[
@@ -1671,6 +1683,16 @@ function renderRevLines(lines){
   container.innerHTML='';
   lines.forEach((l,i)=>{
     const lineTotal=((parseFloat(l.qty)||0)*(parseFloat(l.price)||0)).toFixed(2);
+
+    // Resolve proper sub-category from keyword matcher
+    const rawCat = l.cat||l.sub||'';
+    const isGeneric = ['seafood','meat','produce','dairy','dry goods','beverages','other','meat & poultry'].includes(rawCat.toLowerCase());
+    let resolvedCat = rawCat;
+    if(isGeneric && l.name){
+      const matches = suggestMatches(l.name);
+      if(matches[0]) resolvedCat = matches[0].sub || rawCat;
+    }
+
     const row=document.createElement('div');
     row.className='rev-line-row'+(l.flag?' flagged':'');
     row.innerHTML=`
@@ -1679,7 +1701,7 @@ function renderRevLines(lines){
         ${l.flag?`<span class="flag-pill">⚑ ${l.flag}</span>`:''}
       </div>
       <select class="fi" style="font-size:10px;">
-        ${buildCatOptions(l.cat||l.sub||'')}
+        ${buildCatOptions(resolvedCat)}
       </select>
       <input class="fi" style="font-size:12px;text-align:center;" type="number" value="${l.qty||''}" min="0" step="0.01" oninput="calcRevLineTotal(this)">
       <select class="fi" style="font-size:10px;">
@@ -1820,40 +1842,53 @@ async function loadRevFile(input){
   showInvoiceFile(file);
 }
 
-function showInvoiceFile(file){
-  if(!file) return;
-  document.getElementById('revFileStatus').textContent='📎 '+file.name+' ('+Math.round(file.size/1024)+'KB)';
+function showInvoiceFile(fileOrEntry){
+  if(!fileOrEntry) return;
 
-  // Make sure panel is open
-  if(!revPanelOpen) toggleRevPanel();
+  // Handle both File objects (from loadRevFile) and stored base64 entries
+  const isStored = fileOrEntry.dataUrl !== undefined;
+  const name = fileOrEntry.name || 'invoice';
+  const type = fileOrEntry.type || '';
 
-  if(file.type.startsWith('image/')){
-    const placeholder = document.getElementById('revImgPlaceholder');
-    const img = document.getElementById('revImgReal');
-    if(placeholder) placeholder.style.display='none';
-    if(img){
-      const reader = new FileReader();
-      reader.onload = e => {
-        img.src = e.target.result;
+  document.getElementById('revFileStatus').textContent = '📎 ' + name;
+
+  const placeholder = document.getElementById('revImgPlaceholder');
+  if(placeholder) placeholder.style.display='none';
+
+  if(isStored){
+    // Use stored base64 dataUrl directly
+    const dataUrl = fileOrEntry.dataUrl;
+    const isImage = type.startsWith('image/');
+    if(isImage){
+      const img = document.getElementById('revImgReal');
+      if(img){
+        img.src = dataUrl;
         img.style.display='block';
         img.style.width='100%';
         img.style.transform=`scale(${imgZoom}) rotate(${imgRotate}deg)`;
         img.style.transformOrigin='top center';
         img.style.cursor='zoom-in';
-      };
-      reader.readAsDataURL(file);
+      }
+    } else {
+      const area = document.getElementById('revImgArea');
+      if(area) area.innerHTML=`
+        <div style="width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:10px;">
+          <div style="background:var(--bg3);border:1px solid var(--green);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--green);flex-shrink:0;">✓ ${name}</div>
+          <iframe src="${dataUrl}" style="flex:1;width:100%;min-height:420px;border:none;border-radius:4px;background:#fff;"></iframe>
+          <a href="${dataUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-align:center;padding:4px;">↗ Open in full tab</a>
+        </div>`;
     }
-  } else if(file.type==='application/pdf'){
-    const area = document.getElementById('revImgArea');
-    const objectUrl = URL.createObjectURL(file);
-    area.innerHTML=`
-      <div style="width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:10px;">
-        <div style="background:var(--bg3);border:1px solid var(--green);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--green);flex-shrink:0;">
-          ✓ PDF loaded: ${file.name}
-        </div>
-        <iframe src="${objectUrl}#toolbar=0" style="flex:1;width:100%;min-height:420px;border:none;border-radius:4px;background:#fff;"></iframe>
-        <a href="${objectUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-align:center;padding:4px;">↗ Open in full tab</a>
-      </div>`;
+  } else {
+    // Raw File object — read it into base64 first
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      // Store it so next time it loads instantly
+      if(revInvId) invoiceFileStore[revInvId] = { dataUrl, name, type };
+      window._pendingRevFile = { dataUrl, name, type };
+      showInvoiceFile({ dataUrl, name, type }); // recurse with stored entry
+    };
+    reader.readAsDataURL(fileOrEntry);
   }
 }
 
@@ -2644,13 +2679,26 @@ function fillInvoiceForm(parsed){
   if(parsed.total!=null)    document.getElementById('invGrandTotal').value=parsed.total;
 
   const items=parsed.line_items||[];
-  items.forEach(item=>addLine({
-    name: item.canonical_name||item.name||'',
-    cat:  item.sub_category||item.parent_category||item.category||'',
-    qty:  item.quantity||'',
-    unit: item.unit||'',
-    price:item.unit_price||item.price||'',
-  }));
+  items.forEach(item=>{
+    // Always run through keyword matcher to get proper sub-category
+    const rawName = item.name||'';
+    const matches = suggestMatches(rawName);
+    const bestMatch = matches[0];
+
+    // Use AI sub_category if it looks specific, otherwise use keyword match
+    const aiCat = item.sub_category||item.category||'';
+    const isGeneric = ['seafood','meat','produce','dairy','dry goods','beverages','other','meat & poultry'].includes(aiCat.toLowerCase());
+    const resolvedCat = (!isGeneric && aiCat) ? aiCat : (bestMatch?.sub || aiCat || '');
+    const resolvedName = item.canonical_name || (bestMatch?.conf==='high' ? bestMatch.name : rawName);
+
+    addLine({
+      name:  resolvedName,
+      cat:   resolvedCat,
+      qty:   item.quantity||'',
+      unit:  item.unit||'',
+      price: item.unit_price||item.price||'',
+    });
+  });
   document.getElementById('aiCount').textContent=items.length;
   document.getElementById('aiPreview').style.display='block';
   recalcTotal();
