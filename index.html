@@ -2486,11 +2486,21 @@ async function processFile(file){
     nav('settings');
     return;
   }
-  // Store file immediately with temp key — will be re-keyed to invoice number on submit
+
+  // Convert to base64 FIRST — store immediately so it's always available
   window._currentInvoiceFile = file;
-  window._tempFileKey = '__pending__'+Date.now();
-  storeInvoiceFile(window._tempFileKey, file);
-  console.log('[processFile] File stored with temp key:', window._tempFileKey);
+  try {
+    const base64DataUrl = await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('File read failed'));
+      reader.readAsDataURL(file);
+    });
+    window._currentInvoiceDataUrl = { dataUrl: base64DataUrl, name: file.name, type: file.type };
+    console.log('[processFile] Base64 stored immediately:', file.name, 'size:', base64DataUrl.length);
+  } catch(e){
+    console.error('[processFile] Failed to read file:', e);
+  }
 
   // Show spinner
   document.getElementById('uploadZone').style.display='none';
@@ -2835,6 +2845,19 @@ function fileToBase64(file){
 // Add keywords here as you encounter new vendor naming conventions
 // ─────────────────────────────────────────────────────────────────────
 const KEYWORD_MAP = [
+  // ── UNI / ROE ──
+  { keywords:['uni','sea urchin','bafun uni','murasaki uni','uni special'],  canonical:'Uni',          sub:'Uni / Roe', conf:'high' },
+  { keywords:['ikura','tobiko','masago','roe'],                              canonical:'Fish Roe',     sub:'Uni / Roe', conf:'high' },
+
+  // ── TAI / SNAPPER (Japanese) ──
+  { keywords:['tai','madai','sanchijime tai','sea bream'],                   canonical:'Red Snapper',  sub:'Snapper / Grouper', conf:'high' },
+
+  // ── SCALLOPS (Japanese) ──
+  { keywords:['hotate','muki hotate','scallop'],                             canonical:'Diver Scallops', sub:'Scallops', conf:'high' },
+
+  // ── SIMAAJI / HORSE MACKEREL ──
+  { keywords:['simaaji','shimaaji','aji','horse mackerel'],                  canonical:'Horse Mackerel', sub:'Other Seafood', conf:'high' },
+
   // ── HAMACHI / YELLOWTAIL ──
   { keywords:['hamachi','yellowtail','hiramasa','buri'],       canonical:'Hamachi',             sub:'Yellowtail / Hamachi', conf:'high' },
 
@@ -3063,26 +3086,30 @@ async function submitReview(){
 
   let fileUrl=null, fileName=null, fileType=null;
 
-  // Re-key file from temp key to real invoice number
-  if(window._currentInvoiceFile){
-    const file=window._currentInvoiceFile;
-    storeInvoiceFile(num, file);
-    window._pendingRevFile=file; // pre-load for review modal
-    console.log('[submitReview] Stored file for invoice:', num, file.name);
-    // Upload to Supabase
-    toast('Uploading invoice file...','');
-    try {
-      const ext=file.name.split('.').pop();
-      const path=`${num.replace(/[^a-zA-Z0-9-_]/g,'_')}_${Date.now()}.${ext}`;
-      const {data,error}=await sb.storage.from('invoices').upload(path,file,{upsert:true});
-      if(!error){
-        const {data:urlData}=sb.storage.from('invoices').getPublicUrl(path);
-        fileUrl=urlData?.publicUrl||null;
-        fileName=file.name;
-        fileType=file.type;
-      }
-    } catch(e){ console.error('File upload error:',e); }
+  // Store the pre-converted base64 data URL
+  if(window._currentInvoiceDataUrl){
+    const entry = window._currentInvoiceDataUrl;
+    invoiceFileStore[num] = entry;
+    window._pendingRevFile = entry;
+    console.log('[submitReview] Stored base64 for:', num, entry.name, 'dataUrl length:', entry.dataUrl.length);
+    fileName = entry.name;
+    fileType = entry.type;
+
+    // Upload to Supabase in background
+    if(window._currentInvoiceFile){
+      try {
+        const file = window._currentInvoiceFile;
+        const ext = file.name.split('.').pop();
+        const path = `${num.replace(/[^a-zA-Z0-9-_]/g,'_')}_${Date.now()}.${ext}`;
+        const {data,error} = await sb.storage.from('invoices').upload(path,file,{upsert:true});
+        if(!error){
+          const {data:urlData} = sb.storage.from('invoices').getPublicUrl(path);
+          fileUrl = urlData?.publicUrl||null;
+        }
+      } catch(e){ console.error('Supabase upload error:',e); }
+    }
     window._currentInvoiceFile=null;
+    window._currentInvoiceDataUrl=null;
   }
 
   closeM('uploadModal');
