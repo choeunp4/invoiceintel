@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvoiceIntel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#080808;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;
+  --border:#222;--border2:#2e2e2e;
+  --text:#ececec;--text2:#888;--text3:#444;
+  --accent:#e8c547;--accent2:#c4a030;
+  --red:#e05252;--green:#52c97a;--blue:#52a8e0;--orange:#e08a52;
+  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Bebas Neue',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh;}
+#root{height:100vh;overflow:hidden;display:flex;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+input,select,textarea{font-family:var(--sans);}
+button{cursor:pointer;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONFIG ────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://wuiakcgqaznnqevbggia.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1aWFrY2dxYXpubnFldmJnZ2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDQ1MDAsImV4cCI6MjA5MjYyMDUwMH0.Dr_5YiJsCqfimYumKeJVGLveh2wOZTH4zmIuGwsQBcI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const getKey = () => localStorage.getItem('ii_key')||'';
+const setKey = k => localStorage.setItem('ii_key', k);
+
+// ─── KEYWORD MATCHER ───────────────────────────────────────────────
+const KW = [
+  {kw:['bafun uni','uni special','murasaki uni','sea urchin','uni'],  cat:'Uni / Roe',             name:'Uni'},
+  {kw:['muki hotate','hotate','scallop'],                              cat:'Scallops',              name:'Scallops'},
+  {kw:['ikejime kanpachi','ikejime','kanpachi','kampachi','amberjack'],cat:'Kanpachi / Amberjack',  name:'Kanpachi'},
+  {kw:['tennen buri','hamachi','yellowtail','hiramasa','buri'],        cat:'Yellowtail / Hamachi',  name:'Hamachi'},
+  {kw:['sanchijime tai','madai','sea bream','tai'],                    cat:'Snapper / Grouper',     name:'Red Snapper'},
+  {kw:['sanchijime simaaji','shimaaji','simaaji','horse mackerel'],    cat:'Other Seafood',         name:'Horse Mackerel'},
+  {kw:['ora king','king salmon nz','new zealand king'],                cat:'Salmon',                name:'Ora King Salmon'},
+  {kw:['faroe','faroese'],                                             cat:'Salmon',                name:'Faroe Island Salmon'},
+  {kw:['scottish salmon'],                                             cat:'Salmon',                name:'Scottish Salmon'},
+  {kw:['atlantic salmon','atl salmon'],                                cat:'Salmon',                name:'Atlantic Salmon'},
+  {kw:['coho','silver salmon'],                                        cat:'Salmon',                name:'Coho Salmon'},
+  {kw:['sockeye','red salmon'],                                        cat:'Salmon',                name:'Sockeye Salmon'},
+  {kw:['king salmon','chinook'],                                       cat:'Salmon',                name:'King Salmon'},
+  {kw:['salmon'],                                                      cat:'Salmon',                name:'Salmon'},
+  {kw:['bluefin','hon maguro','blue fin'],                             cat:'Tuna',                  name:'Bluefin Tuna'},
+  {kw:['yellowfin','ahi tuna'],                                        cat:'Tuna',                  name:'Yellowfin Tuna'},
+  {kw:['bigeye tuna'],                                                 cat:'Tuna',                  name:'Bigeye Tuna'},
+  {kw:['albacore'],                                                    cat:'Tuna',                  name:'Albacore Tuna'},
+  {kw:['tuna'],                                                        cat:'Tuna',                  name:'Tuna'},
+  {kw:['chilean sea bass','csb','patagonian toothfish'],               cat:'Sea Bass',              name:'Chilean Sea Bass'},
+  {kw:['branzino','branzini','loup de mer'],                           cat:'Sea Bass',              name:'Branzino'},
+  {kw:['black sea bass'],                                              cat:'Sea Bass',              name:'Black Sea Bass'},
+  {kw:['sea bass'],                                                    cat:'Sea Bass',              name:'Sea Bass'},
+  {kw:['halibut','hali'],                                              cat:'Halibut',               name:'Halibut'},
+  {kw:['black cod','sablefish','gindara','butterfish'],                cat:'Cod / Haddock',         name:'Black Cod'},
+  {kw:['cod','haddock'],                                               cat:'Cod / Haddock',         name:'Cod'},
+  {kw:['red snapper','snapper'],                                       cat:'Snapper / Grouper',     name:'Red Snapper'},
+  {kw:['grouper'],                                                     cat:'Snapper / Grouper',     name:'Grouper'},
+  {kw:['shrimp','prawn'],                                              cat:'Shrimp',                name:'Shrimp'},
+  {kw:['lobster'],                                                     cat:'Lobster',               name:'Lobster'},
+  {kw:['king crab','snow crab','dungeness','crab'],                    cat:'Crab',                  name:'Crab'},
+  {kw:['oyster','clam','mussel'],                                      cat:'Oysters / Shellfish',   name:'Shellfish'},
+  {kw:['swordfish'],                                                   cat:'Swordfish / Mahi',      name:'Swordfish'},
+  {kw:['mahi'],                                                        cat:'Swordfish / Mahi',      name:'Mahi Mahi'},
+  {kw:['beef tenderloin','tenderloin','filet mignon','beef filet'],    cat:'Beef',                  name:'Beef Tenderloin'},
+  {kw:['ribeye','rib eye','rib-eye'],                                  cat:'Beef',                  name:'Ribeye'},
+  {kw:['ny strip','new york strip'],                                   cat:'Beef',                  name:'NY Strip'},
+  {kw:['wagyu'],                                                       cat:'Beef',                  name:'Wagyu'},
+  {kw:['short rib'],                                                   cat:'Beef',                  name:'Short Rib'},
+  {kw:['ground beef'],                                                 cat:'Beef',                  name:'Ground Beef'},
+  {kw:['chicken breast','chkn bst','chkn brst'],                      cat:'Chicken',               name:'Chicken Breast'},
+  {kw:['chicken wing','chkn wing','chicken wng'],                     cat:'Chicken',               name:'Chicken Wings'},
+  {kw:['chicken thigh','chkn thigh'],                                  cat:'Chicken',               name:'Chicken Thigh'},
+  {kw:['duck breast'],                                                  cat:'Duck',                  name:'Duck Breast'},
+  {kw:['duck leg','duck confit'],                                       cat:'Duck',                  name:'Duck Leg'},
+  {kw:['lamb rack','rack of lamb'],                                     cat:'Lamb',                  name:'Lamb Rack'},
+  {kw:['lamb chop'],                                                    cat:'Lamb',                  name:'Lamb Chop'},
+  {kw:['pork belly'],                                                   cat:'Pork',                  name:'Pork Belly'},
+  {kw:['pork chop'],                                                    cat:'Pork',                  name:'Pork Chop'},
+  {kw:['veal'],                                                         cat:'Veal',                  name:'Veal'},
+  {kw:['heavy cream','hvy cream','hvy crm'],                           cat:'Dairy',                 name:'Heavy Cream'},
+  {kw:['butter','unsalted butter','cultured butter'],                   cat:'Dairy',                 name:'Butter'},
+  {kw:['mozzarella','fresh mozz','mozz'],                               cat:'Dairy',                 name:'Mozzarella'},
+  {kw:['burrata'],                                                       cat:'Dairy',                 name:'Burrata'},
+  {kw:['parmesan','parmigiano','parm'],                                  cat:'Dairy',                 name:'Parmesan'},
+  {kw:['ricotta'],                                                        cat:'Dairy',                 name:'Ricotta'},
+  {kw:['eggs','farm egg','large egg'],                                   cat:'Dairy',                 name:'Eggs'},
+  {kw:['truffle','tartufo','black truffle','white truffle'],             cat:'Produce',               name:'Truffle'},
+  {kw:['shiitake','cremini','mushroom'],                                  cat:'Produce',               name:'Mushrooms'},
+  {kw:['roma tomato','tomato'],                                           cat:'Produce',               name:'Tomatoes'},
+  {kw:['potato','russet','yukon'],                                        cat:'Produce',               name:'Potatoes'},
+  {kw:['asparagus'],                                                       cat:'Produce',               name:'Asparagus'},
+  {kw:['mixed greens','arugula','spinach'],                               cat:'Produce',               name:'Greens'},
+  {kw:['flour'],                                                           cat:'Dry Goods',             name:'Flour'},
+  {kw:['olive oil','evoo','extra virgin'],                                cat:'Dry Goods',             name:'Olive Oil'},
+  {kw:['truffle oil'],                                                     cat:'Dry Goods',             name:'Truffle Oil'},
+  {kw:['pasta','arborio','rice','polenta'],                               cat:'Dry Goods',             name:'Pasta / Grains'},
+  {kw:['panko','breadcrumb'],                                             cat:'Dry Goods',             name:'Breadcrumbs'},
+];
+
+function matchItem(rawName) {
+  const n = (rawName||'').toLowerCase();
+  for(const e of KW) {
+    for(const kw of e.kw) {
+      if(n.includes(kw)) return { cat: e.cat, canonical: e.name };
+    }
+  }
+  return null;
+}
+
+// ─── AI ────────────────────────────────────────────────────────────
+const AI_PROMPT = `Extract all data from this invoice. Return ONLY valid JSON, no markdown:
+{"vendor":"name","invoice_number":"number or null","invoice_date":"YYYY-MM-DD or null","subtotal":0.00,"tax":0.00,"fees":0.00,"total":0.00,"line_items":[{"name":"exact name","quantity":1.0,"unit":"lb","unit_price":0.00,"line_total":0.00}]}
+Rules: extract EVERY line item. unit_price=per unit. line_total=qty*unit_price. total=subtotal+tax+fees.`;
+
+async function callAI(base64, mimeType, apiKey) {
+  const isPDF = mimeType === 'application/pdf';
+
+  // Check file size — base64 of 5MB+ PDFs can cause issues
+  const sizeMB = (base64.length * 0.75) / (1024*1024);
+  console.log(`[AI] File size: ${sizeMB.toFixed(1)}MB, type: ${mimeType}`);
+
+  if(sizeMB > 15) throw new Error(`File too large (${sizeMB.toFixed(1)}MB). Please use a PDF under 15MB or a photo.`);
+
+  const content = isPDF
+    ? [{type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},{type:'text',text:AI_PROMPT}]
+    : [{type:'image',source:{type:'base64',media_type:mimeType,data:base64}},{type:'text',text:AI_PROMPT}];
+
+  console.log('[AI] Calling Anthropic API…');
+
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:3000,messages:[{role:'user',content}]})
+    });
+  } catch(e) {
+    console.error('[AI] Fetch error:', e);
+    throw new Error('Network error — check your internet connection and try again. If on a phone, try on desktop first.');
+  }
+
+  if(!res.ok){
+    const e = await res.json().catch(()=>({}));
+    console.error('[AI] API error:', res.status, e);
+    throw new Error(`API error ${res.status}: ${e.error?.message||'Unknown error'}`);
+  }
+
+  const data = await res.json();
+  console.log('[AI] Success, content blocks:', data.content?.length);
+  const text = data.content?.[0]?.text||'';
+  try {
+    return JSON.parse(text.replace(/```json|```/g,'').trim());
+  } catch(e) {
+    console.error('[AI] JSON parse error, raw text:', text.substring(0,200));
+    throw new Error('Could not parse AI response — try again');
+  }
+}
+
+// ─── FILE TO BASE64 ────────────────────────────────────────────────
+function fileToDataUrl(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = () => rej(new Error('File read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ─── PDF BLOB URL ──────────────────────────────────────────────────
+function usePdfBlobUrl(dataUrl, isActive) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    if(!isActive || !dataUrl) return;
+    try {
+      const b64 = dataUrl.split(',')[1];
+      const bin = atob(b64);
+      const buf = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+      const blob = new Blob([buf],{type:'application/pdf'});
+      const u = URL.createObjectURL(blob);
+      setUrl(u);
+      return () => URL.revokeObjectURL(u);
+    } catch(e) { console.error('PDF blob error:',e); }
+  }, [dataUrl, isActive]);
+  return url;
+}
+
+// ─── INVOICE VIEWER ────────────────────────────────────────────────
+function InvoiceViewer({ dataUrl, mimeType, fileName, height=500 }) {
+  const isPDF = (mimeType||'').includes('pdf');
+  const blobUrl = usePdfBlobUrl(dataUrl, isPDF);
+
+  if(!dataUrl) return (
+    <div style={{textAlign:'center',padding:40,color:'var(--text3)',fontFamily:'var(--mono)',fontSize:11}}>
+      No file attached
+    </div>
+  );
+
+  if(isPDF) {
+    if(!blobUrl) return <div style={{padding:20,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>Loading PDF…</div>;
+    return (
+      <div style={{display:'flex',flexDirection:'column',height,gap:6}}>
+        <iframe src={blobUrl} style={{flex:1,width:'100%',border:'none',borderRadius:4,background:'#fff'}} />
+        <a href={blobUrl} target="_blank" style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',textAlign:'center'}}>↗ Open in new tab</a>
+      </div>
+    );
+  }
+
+  return <img src={dataUrl} style={{width:'100%',borderRadius:4,maxHeight:height,objectFit:'contain'}} alt={fileName||'Invoice'} />;
+}
+
+// ─── STYLES ────────────────────────────────────────────────────────
+const S = {
+  app:{display:'flex',height:'100vh',overflow:'hidden'},
+  sidebar:{width:220,minWidth:220,background:'var(--bg2)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',zIndex:10},
+  main:{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'},
+  content:{flex:1,overflowY:'auto',padding:'20px 24px'},
+  logo:{padding:'20px 18px 16px',borderBottom:'1px solid var(--border)'},
+  logoWord:{fontFamily:'var(--display)',fontSize:22,letterSpacing:3,color:'var(--accent)',lineHeight:1},
+  logoTag:{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,marginTop:3},
+  navSec:{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,padding:'12px 18px 4px',textTransform:'uppercase'},
+  topbar:{background:'var(--bg2)',borderBottom:'1px solid var(--border)',padding:'11px 22px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0},
+  pageTitle:{fontFamily:'var(--display)',fontSize:24,letterSpacing:3},
+  card:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'16px 18px'},
+  statGrid:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:20},
+  tbl:{width:'100%',borderCollapse:'collapse'},
+  tblWrap:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,overflow:'hidden',marginBottom:16},
+  th:{fontFamily:'var(--mono)',fontSize:9,letterSpacing:2,color:'var(--text3)',padding:'9px 12px',textAlign:'left',fontWeight:400,textTransform:'uppercase'},
+  td:{padding:'9px 12px',borderBottom:'1px solid var(--border)'},
+  btn:{background:'var(--bg3)',border:'1px solid var(--border2)',color:'var(--text2)',padding:'6px 12px',borderRadius:4,fontFamily:'var(--mono)',fontSize:11,cursor:'pointer'},
+  btnPrimary:{background:'var(--accent)',color:'#000',border:'none',borderRadius:4,padding:'9px 22px',fontFamily:'var(--display)',fontSize:17,letterSpacing:2,cursor:'pointer'},
+  btnGhost:{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',padding:'5px 10px',borderRadius:3,fontFamily:'var(--mono)',fontSize:11,cursor:'pointer'},
+  btnRed:{background:'rgba(224,82,82,.12)',border:'1px solid var(--red)',color:'var(--red)',borderRadius:4,padding:'8px 18px',fontFamily:'var(--display)',fontSize:15,letterSpacing:2,cursor:'pointer'},
+  input:{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'7px 10px',color:'var(--text)',fontFamily:'var(--sans)',fontSize:13,outline:'none',width:'100%'},
+  select:{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:4,padding:'7px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11,outline:'none',cursor:'pointer'},
+  label:{fontFamily:'var(--mono)',fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--text3)',display:'block',marginBottom:4},
+  overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'},
+  modal:{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:8,display:'flex',flexDirection:'column',overflow:'hidden'},
+  modalHdr:{padding:'14px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0},
+  modalTitle:{fontFamily:'var(--display)',fontSize:20,letterSpacing:2},
+  modalFoot:{padding:'12px 20px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--bg2)',flexShrink:0},
+  mono:{fontFamily:'var(--mono)'},
+};
+
+const chip = (color,text) => (
+  <span style={{background:`${color}20`,color,border:`1px solid ${color}40`,borderRadius:3,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:10,whiteSpace:'nowrap'}}>{text}</span>
+);
+
+const statusChip = s => chip(s==='approved'?'var(--green)':s==='pending'?'var(--accent)':'var(--red)',s);
+
+// ─── NAV ITEM ──────────────────────────────────────────────────────
+function NavItem({icon,label,active,badge,onClick}) {
+  return (
+    <div onClick={onClick} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 18px',cursor:'pointer',color:active?'var(--accent)':'var(--text2)',borderLeft:active?'2px solid var(--accent)':'2px solid transparent',background:active?'var(--bg3)':'transparent',fontSize:13,transition:'color .1s'}}>
+      <span style={{width:18,textAlign:'center',fontSize:14}}>{icon}</span>
+      <span style={{flex:1}}>{label}</span>
+      {badge>0&&<span style={{background:'var(--red)',color:'#fff',borderRadius:3,padding:'1px 6px',fontFamily:'var(--mono)',fontSize:10}}>{badge}</span>}
+    </div>
+  );
+}
+
+// ─── STAT CARD ─────────────────────────────────────────────────────
+function StatCard({label,value,sub,accent='var(--accent)'}) {
+  return (
+    <div style={{...S.card,position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:accent}}/>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>{label}</div>
+      <div style={{fontFamily:'var(--display)',fontSize:26,letterSpacing:1,lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)',marginTop:5}}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── CAT SELECT ────────────────────────────────────────────────────
+function CatSelect({value,onChange,categories}) {
+  const [creating,setCreating] = useState(false);
+  const [newVal,setNewVal] = useState('');
+
+  if(creating) return (
+    <div style={{display:'flex',gap:4}}>
+      <input autoFocus value={newVal} onChange={e=>setNewVal(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newVal.trim()){onChange(newVal.trim());setCreating(false);setNewVal('');}}} placeholder="Category name…" style={{...S.input,fontSize:11,padding:'5px 8px'}}/>
+      <button onClick={()=>{if(newVal.trim()){onChange(newVal.trim());setCreating(false);setNewVal('');}}} style={{...S.btn,background:'var(--accent)',color:'#000',padding:'4px 8px',border:'none'}}>✓</button>
+      <button onClick={()=>setCreating(false)} style={{...S.btnGhost,padding:'4px 8px'}}>✕</button>
+    </div>
+  );
+
+  return (
+    <select value={value||''} onChange={e=>{if(e.target.value==='__new__'){setCreating(true);}else{onChange(e.target.value);}}} style={{...S.select,fontSize:10,width:'100%'}}>
+      <option value="__new__">+ New Category…</option>
+      <option value="" disabled>──────────</option>
+      {value&&!categories.includes(value)&&<option value={value}>{value}</option>}
+      {categories.map(c=><option key={c} value={c}>{c}</option>)}
+    </select>
+  );
+}
+
+// ─── UPLOAD MODAL ──────────────────────────────────────────────────
+function UploadModal({onClose,onSubmit,categories,addCategory}) {
+  const [step,setStep] = useState('drop'); // drop|ai|form
+  const [fileData,setFileData] = useState(null);
+  const [err,setErr] = useState('');
+  const [vendor,setVendor] = useState('');
+  const [num,setNum] = useState('');
+  const [date,setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [subtotal,setSubtotal] = useState('');
+  const [tax,setTax] = useState('');
+  const [fees,setFees] = useState('');
+  const [grand,setGrand] = useState('');
+  const [notes,setNotes] = useState('');
+  const [lines,setLines] = useState([]);
+  const [showPreview,setShowPreview] = useState(false);
+  const dropRef = useRef();
+
+  const handleFile = async file => {
+    if(!getKey()){setErr('No API key — go to Settings first');return;}
+    setErr('');
+    // Convert to dataUrl FIRST — guaranteed stored before AI call
+    const dataUrl = await fileToDataUrl(file);
+    const fd = {dataUrl, name:file.name, mimeType:file.type};
+    setFileData(fd);
+    setStep('ai');
+    try {
+      const base64 = dataUrl.split(',')[1];
+      const parsed = await callAI(base64, file.type, getKey());
+      setVendor(parsed.vendor||'');
+      setNum(parsed.invoice_number||'');
+      setDate(parsed.invoice_date||new Date().toISOString().split('T')[0]);
+      setSubtotal(String(parsed.subtotal||''));
+      setTax(String(parsed.tax||''));
+      setFees(String(parsed.fees||''));
+      setGrand(String(parsed.total||''));
+      const enriched = (parsed.line_items||[]).map(li=>{
+        const m = matchItem(li.name);
+        if(m&&!categories.includes(m.cat)) addCategory(m.cat);
+        return {...li, id:Math.random().toString(36).slice(2), category:m?.cat||'', canonical:m?.name||li.name};
+      });
+      setLines(enriched);
+      setStep('form');
+    } catch(e) {
+      setErr('AI error: '+e.message);
+      setLines([{id:'1',name:'',category:'',quantity:'',unit:'lb',unit_price:'',line_total:''}]);
+      setStep('form');
+    }
+  };
+
+  const updateLine = (id,field,val) => setLines(prev=>prev.map(l=>l.id===id?{...l,[field]:val}:l));
+  const removeLine = id => setLines(prev=>prev.filter(l=>l.id!==id));
+  const addLine = () => setLines(prev=>[...prev,{id:Math.random().toString(36).slice(2),name:'',category:'',quantity:'',unit:'lb',unit_price:'',line_total:''}]);
+
+  const calc = (parseFloat(subtotal)||0)+(parseFloat(tax)||0)+(parseFloat(fees)||0);
+  const match = grand && Math.abs(calc-parseFloat(grand))<0.02;
+
+  const submit = () => {
+    if(!vendor.trim()){setErr('Vendor name required');return;}
+    onSubmit({
+      vendor:vendor.trim(), invoice_number:num||(Date.now().toString()),
+      invoice_date:date, subtotal:parseFloat(subtotal)||0,
+      tax:parseFloat(tax)||0, fees:parseFloat(fees)||0,
+      total:parseFloat(grand)||calc, notes,
+      line_items:lines,
+      fileDataUrl:fileData?.dataUrl||null,
+      fileName:fileData?.name||null,
+      fileType:fileData?.mimeType||null,
+    });
+  };
+
+  return (
+    <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{...S.modal,width:'96%',maxWidth:step==='form'?1060:520,maxHeight:'94vh'}}>
+        <div style={S.modalHdr}>
+          <div style={S.modalTitle}>{step==='drop'?'NEW INVOICE':step==='ai'?'READING…':'REVIEW INVOICE'}</div>
+          <button onClick={onClose} style={{background:'none',border:'1px solid var(--border2)',color:'var(--text2)',width:28,height:28,borderRadius:4,fontSize:13,cursor:'pointer'}}>✕</button>
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:20}}>
+          {err&&<div style={{background:'rgba(224,82,82,.12)',border:'1px solid var(--red)',borderRadius:4,padding:'8px 12px',fontFamily:'var(--mono)',fontSize:11,color:'var(--red)',marginBottom:12}}>{err}</div>}
+
+          {step==='drop'&&(
+            <div ref={dropRef} onDragOver={e=>{e.preventDefault();dropRef.current.style.borderColor='var(--accent)';}} onDragLeave={()=>dropRef.current.style.borderColor='var(--border2)'} onDrop={e=>{e.preventDefault();dropRef.current.style.borderColor='var(--border2)';const f=e.dataTransfer.files[0];if(f)handleFile(f);}} onClick={()=>document.getElementById('_filePick').click()} style={{border:'2px dashed var(--border2)',borderRadius:8,padding:52,textAlign:'center',cursor:'pointer',transition:'border-color .2s'}}>
+              <div style={{fontSize:44,marginBottom:12}}>📄</div>
+              <div style={{fontFamily:'var(--display)',fontSize:22,letterSpacing:2,color:'var(--text2)',marginBottom:8}}>DROP INVOICE HERE</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>Click to browse · PDF · JPG · PNG</div>
+              <input id="_filePick" type="file" accept="image/*,.pdf" style={{display:'none'}} onChange={e=>{const f=e.target.files[0];if(f)handleFile(f);}}/>
+            </div>
+          )}
+
+          {step==='ai'&&(
+            <div style={{textAlign:'center',padding:44}}>
+              <div style={{width:40,height:40,border:'2px solid var(--border2)',borderTopColor:'var(--accent)',borderRadius:'50%',animation:'spin .7s linear infinite',margin:'0 auto 16px'}}/>
+              <div style={{fontFamily:'var(--display)',fontSize:22,letterSpacing:2,color:'var(--accent)',marginBottom:8}}>READING INVOICE</div>
+              <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',marginBottom:6}}>Claude is extracting all line items…</div>
+              {fileData&&<div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>📎 {fileData.name}</div>}
+            </div>
+          )}
+
+          {step==='form'&&(
+            <div style={{display:'flex',gap:20}}>
+              {/* LEFT — form */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+                  <div><label style={S.label}>Vendor *</label><input style={S.input} value={vendor} onChange={e=>setVendor(e.target.value)} placeholder="Vendor name"/></div>
+                  <div><label style={S.label}>Invoice #</label><input style={S.input} value={num} onChange={e=>setNum(e.target.value)} placeholder="INV-001"/></div>
+                  <div><label style={S.label}>Date</label><input type="date" style={S.input} value={date} onChange={e=>setDate(e.target.value)}/></div>
+                  <div><label style={S.label}>Notes</label><input style={S.input} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional"/></div>
+                </div>
+
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>Line Items ({lines.length})</div>
+                <div style={{display:'grid',gridTemplateColumns:'2fr 1.2fr .55fr .55fr .85fr .85fr 24px',gap:5,marginBottom:5}}>
+                  {['Item','Category','Qty','Unit','Unit $','Total',''].map(h=><div key={h} style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--text3)',letterSpacing:1,textTransform:'uppercase'}}>{h}</div>)}
+                </div>
+                <div style={{maxHeight:260,overflowY:'auto'}}>
+                  {lines.map(l=>(
+                    <div key={l.id} style={{display:'grid',gridTemplateColumns:'2fr 1.2fr .55fr .55fr .85fr .85fr 24px',gap:5,marginBottom:5,alignItems:'center'}}>
+                      <input style={{...S.input,fontSize:11,padding:'5px 8px'}} value={l.name} onChange={e=>updateLine(l.id,'name',e.target.value)} placeholder="Item"/>
+                      <CatSelect value={l.category} categories={categories} onChange={v=>{updateLine(l.id,'category',v);if(v&&!categories.includes(v))addCategory(v);}}/>
+                      <input style={{...S.input,fontSize:11,padding:'5px 6px',textAlign:'center'}} type="number" value={l.quantity} onChange={e=>updateLine(l.id,'quantity',e.target.value)}/>
+                      <select style={{...S.select,fontSize:10,padding:'5px 6px'}} value={l.unit||'lb'} onChange={e=>updateLine(l.id,'unit',e.target.value)}>
+                        {['lb','kg','case','each','oz','gallon','qt','dozen'].map(u=><option key={u}>{u}</option>)}
+                      </select>
+                      <input style={{...S.input,fontSize:11,padding:'5px 6px',fontFamily:'var(--mono)'}} type="number" step="0.01" value={l.unit_price} onChange={e=>updateLine(l.id,'unit_price',e.target.value)}/>
+                      <input style={{...S.input,fontSize:11,padding:'5px 6px',fontFamily:'var(--mono)',background:'var(--bg4)'}} type="number" step="0.01" value={l.line_total} onChange={e=>updateLine(l.id,'line_total',e.target.value)}/>
+                      <button onClick={()=>removeLine(l.id)} style={{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',width:22,height:22,borderRadius:3,fontSize:11,cursor:'pointer',padding:0}}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={addLine} style={{width:'100%',border:'1px dashed var(--border2)',background:'none',color:'var(--text3)',padding:6,borderRadius:4,fontFamily:'var(--mono)',fontSize:11,cursor:'pointer',marginTop:4}}>+ Add Line</button>
+
+                <div style={{background:'var(--bg3)',borderRadius:4,padding:'12px 14px',marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+                  {[['Subtotal',subtotal,setSubtotal],['Tax',tax,setTax],['Fees',fees,setFees]].map(([lbl,v,set])=>(
+                    <div key={lbl}>
+                      <label style={S.label}>{lbl}</label>
+                      <div style={{display:'flex',alignItems:'center',gap:3}}><span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>$</span><input style={{...S.input,fontFamily:'var(--mono)',fontSize:11}} type="number" step="0.01" value={v} onChange={e=>set(e.target.value)} placeholder="0.00"/></div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10}}>
+                  <div>
+                    <label style={S.label}>Grand Total (from invoice)</label>
+                    <div style={{display:'flex',alignItems:'center',gap:3}}><span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>$</span><input style={{...S.input,fontFamily:'var(--mono)',fontSize:13,border:'1px solid var(--accent)',width:150}} type="number" step="0.01" value={grand} onChange={e=>setGrand(e.target.value)} placeholder="0.00"/></div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:1,marginBottom:4}}>CALCULATED</div>
+                    <div style={{fontFamily:'var(--display)',fontSize:22,color:'var(--accent)'}}>${calc.toFixed(2)}</div>
+                    {grand&&<div style={{fontFamily:'var(--mono)',fontSize:10,color:match?'var(--green)':'var(--red)',marginTop:2}}>{match?'✓ Totals match':'⚑ Difference: $'+Math.abs(calc-parseFloat(grand)).toFixed(2)}</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT — preview */}
+              <div style={{width:260,flexShrink:0}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  Invoice Preview
+                  <button onClick={()=>setShowPreview(!showPreview)} style={{...S.btnGhost,fontSize:10,padding:'2px 8px'}}>{showPreview?'Hide':'Show'}</button>
+                </div>
+                {showPreview&&fileData ? (
+                  <InvoiceViewer dataUrl={fileData.dataUrl} mimeType={fileData.mimeType} fileName={fileData.name} height={380}/>
+                ) : (
+                  <div style={{border:'1px solid var(--border2)',borderRadius:6,padding:24,textAlign:'center'}}>
+                    <div style={{fontSize:32,marginBottom:8}}>📄</div>
+                    <div style={{fontFamily:'var(--mono)',fontSize:10,color:fileData?'var(--green)':'var(--text3)'}}>{fileData?'✓ '+fileData.name:'No file'}</div>
+                    {fileData&&<div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)',marginTop:4}}>Click "Show" to preview</div>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {step==='form'&&(
+          <div style={S.modalFoot}>
+            <button onClick={onClose} style={S.btn}>Cancel</button>
+            <button onClick={submit} style={S.btnPrimary}>SUBMIT FOR REVIEW →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── REVIEW MODAL ──────────────────────────────────────────────────
+function ReviewModal({invoice,onClose,onApprove,categories,addCategory}) {
+  const [lines,setLines] = useState((invoice.line_items||[]).map(l=>({...l,id:l.id||Math.random().toString(36).slice(2)})));
+  const [notes,setNotes] = useState(invoice.notes||'');
+  const [showInv,setShowInv] = useState(false);
+  const [done,setDone] = useState(false);
+
+  const updateLine = (id,f,v) => setLines(prev=>prev.map(l=>l.id===id?{...l,[f]:v}:l));
+  const removeLine = id => setLines(prev=>prev.filter(l=>l.id!==id));
+  const addLine = () => setLines(prev=>[...prev,{id:Math.random().toString(36).slice(2),name:'',category:'',quantity:'',unit:'lb',unit_price:'',line_total:''}]);
+
+  const diff = Math.abs(((parseFloat(invoice.subtotal)||0)+(parseFloat(invoice.tax)||0)+(parseFloat(invoice.fees)||0))-(parseFloat(invoice.total)||0));
+  const match = diff<0.02;
+
+  const approve = () => {
+    setDone(true);
+    onApprove({...invoice,line_items:lines,notes});
+    setTimeout(onClose,600);
+  };
+
+  return (
+    <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{...S.modal,width:'96%',maxWidth:1060,height:'92vh'}}>
+        <div style={S.modalHdr}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={S.modalTitle}>REVIEW — {invoice.invoice_number}</div>
+            {statusChip('pending')}
+            <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>{invoice.vendor} · {invoice.invoice_date}</span>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'1px solid var(--border2)',color:'var(--text2)',width:28,height:28,borderRadius:4,fontSize:13,cursor:'pointer'}}>✕</button>
+        </div>
+
+        <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+          {/* Invoice panel — slides in/out */}
+          <div style={{width:showInv?370:0,minWidth:showInv?370:0,flexShrink:0,borderRight:showInv?'1px solid var(--border)':'none',display:'flex',flexDirection:'column',overflow:'hidden',transition:'all .25s ease'}}>
+            {showInv&&<>
+              <div style={{padding:'8px 12px',background:'var(--bg3)',borderBottom:'1px solid var(--border)',fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,flexShrink:0}}>
+                {invoice.fileName||'INVOICE FILE'}
+              </div>
+              <div style={{flex:1,overflow:'auto',padding:10}}>
+                <InvoiceViewer dataUrl={invoice.fileDataUrl} mimeType={invoice.fileType} fileName={invoice.fileName} height={580}/>
+              </div>
+            </>}
+          </div>
+
+          {/* Line items panel */}
+          <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+            <div style={{padding:'8px 14px',background:'var(--bg3)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+              <button onClick={()=>setShowInv(!showInv)} style={{...S.btn,fontSize:11,padding:'5px 12px',borderColor:showInv?'var(--accent)':'var(--border2)',color:showInv?'var(--accent)':'var(--text2)'}}>
+                {showInv?'◀ Hide Invoice':'▶ Show Invoice'}
+                {invoice.fileDataUrl&&!showInv&&<span style={{marginLeft:6,color:'var(--green)'}}>📎</span>}
+              </button>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                {!match&&<span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--red)'}}>⚑ ${diff.toFixed(2)} discrepancy</span>}
+                <button onClick={addLine} style={{...S.btnGhost,fontSize:10}}>+ Add Line</button>
+              </div>
+            </div>
+
+            <div style={{flex:1,overflowY:'auto',padding:14}}>
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1.2fr .55fr .55fr .85fr .85fr 24px',gap:5,marginBottom:6}}>
+                {['Item Name','Category','Qty','Unit','Unit $','Line Total',''].map(h=><div key={h} style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--text3)',letterSpacing:1,textTransform:'uppercase'}}>{h}</div>)}
+              </div>
+
+              {lines.map(l=>(
+                <div key={l.id} style={{display:'grid',gridTemplateColumns:'2fr 1.2fr .55fr .55fr .85fr .85fr 24px',gap:5,marginBottom:5,alignItems:'center'}}>
+                  <input style={{...S.input,fontSize:11,padding:'5px 8px'}} value={l.name} onChange={e=>updateLine(l.id,'name',e.target.value)}/>
+                  <CatSelect value={l.category} categories={categories} onChange={v=>{updateLine(l.id,'category',v);if(v&&!categories.includes(v))addCategory(v);}}/>
+                  <input style={{...S.input,fontSize:11,padding:'5px 6px',textAlign:'center'}} type="number" value={l.quantity} onChange={e=>updateLine(l.id,'quantity',e.target.value)}/>
+                  <select style={{...S.select,fontSize:10,padding:'5px 6px'}} value={l.unit||'lb'} onChange={e=>updateLine(l.id,'unit',e.target.value)}>
+                    {['lb','kg','case','each','oz','gallon','qt','dozen'].map(u=><option key={u}>{u}</option>)}
+                  </select>
+                  <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>$</span><input style={{...S.input,fontSize:11,padding:'5px 6px',fontFamily:'var(--mono)'}} type="number" step="0.01" value={l.unit_price} onChange={e=>updateLine(l.id,'unit_price',e.target.value)}/></div>
+                  <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>$</span><input style={{...S.input,fontSize:11,padding:'5px 6px',fontFamily:'var(--mono)',background:'var(--bg4)'}} type="number" step="0.01" value={l.line_total} onChange={e=>updateLine(l.id,'line_total',e.target.value)}/></div>
+                  <button onClick={()=>removeLine(l.id)} style={{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',width:22,height:22,borderRadius:3,fontSize:11,cursor:'pointer',padding:0}}>✕</button>
+                </div>
+              ))}
+
+              <div style={{borderTop:'1px solid var(--border)',paddingTop:12,marginTop:10}}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:10}}>
+                  {[['Subtotal',invoice.subtotal],['Tax',invoice.tax],['Fees',invoice.fees],['Invoice Total',invoice.total]].map(([lbl,v])=>(
+                    <div key={lbl} style={{textAlign:'center',background:'var(--bg3)',borderRadius:4,padding:'8px 6px'}}>
+                      <div style={{fontFamily:'var(--mono)',fontSize:8,color:'var(--text3)',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>{lbl}</div>
+                      <div style={{fontFamily:'var(--display)',fontSize:18,color:lbl==='Invoice Total'?'var(--accent)':'var(--text)'}}>${parseFloat(v||0).toFixed(2)}</div>
+                    </div>
+                  ))}
+                </div>
+                <label style={S.label}>Notes / Discrepancies</label>
+                <textarea style={{...S.input,resize:'vertical',minHeight:54}} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Note any discrepancies, price disputes…"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={S.modalFoot}>
+          <button style={{...S.btn,borderColor:'var(--red)',color:'var(--red)'}} onClick={onClose}>Flag & Save Later</button>
+          <button onClick={approve} disabled={done} style={{...S.btnPrimary,background:done?'var(--green)':'var(--accent)'}}>{done?'✓ APPROVED':'APPROVE & SAVE ✓'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────
+function Dashboard({invoices,onReview}) {
+  const approved = invoices.filter(i=>i.status==='approved');
+  const pending = invoices.filter(i=>i.status==='pending');
+  const total = approved.reduce((s,i)=>s+(parseFloat(i.total)||0),0);
+  const vendors = [...new Set(approved.map(i=>i.vendor))];
+  const vendSpend = {};
+  approved.forEach(i=>{vendSpend[i.vendor]=(vendSpend[i.vendor]||0)+(parseFloat(i.total)||0);});
+  const vendList = Object.entries(vendSpend).sort((a,b)=>b[1]-a[1]);
+  const maxV = vendList[0]?.[1]||1;
+
+  return <div>
+    <div style={S.statGrid}>
+      <StatCard label="Total Food Cost" value={`$${total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`} sub="All approved invoices"/>
+      <StatCard label="Invoices" value={approved.length} sub={`${pending.length} pending review`} accent="var(--green)"/>
+      <StatCard label="Vendors" value={vendors.length} sub="Active suppliers" accent="var(--blue)"/>
+      <StatCard label="Avg Invoice" value={approved.length?`$${(total/approved.length).toFixed(0)}`:'$0'} sub="Per invoice" accent="var(--orange)"/>
+    </div>
+
+    {pending.length>0&&<div style={{...S.card,border:'1px solid var(--accent)',marginBottom:20}}>
+      <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,color:'var(--accent)',marginBottom:12}}>PENDING REVIEW — {pending.length}</div>
+      {pending.map(inv=>(
+        <div key={inv.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',background:'var(--bg3)',borderRadius:4,marginBottom:8,borderLeft:'3px solid var(--accent)'}}>
+          <div>
+            <div style={{fontSize:13,marginBottom:2}}>{inv.invoice_number} — <span style={{color:'var(--text2)'}}>{inv.vendor}</span></div>
+            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{inv.invoice_date} · {inv.line_items?.length||0} items · ${parseFloat(inv.total||0).toFixed(2)} {inv.fileDataUrl&&'· 📎 file attached'}</div>
+          </div>
+          <button onClick={()=>onReview(inv)} style={{...S.btnPrimary,fontSize:13,padding:'7px 14px',letterSpacing:1}}>OPEN & REVIEW →</button>
+        </div>
+      ))}
+    </div>}
+
+    {vendList.length>0&&<div style={{...S.card,marginBottom:20}}>
+      <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:12}}>Spend by Vendor</div>
+      {vendList.map(([v,amt])=>(
+        <div key={v} style={{display:'flex',alignItems:'center',gap:10,marginBottom:7}}>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)',width:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</div>
+          <div style={{flex:1,height:16,background:'var(--bg3)',borderRadius:2,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${(amt/maxV)*100}%`,background:'var(--accent)',borderRadius:2,display:'flex',alignItems:'center',paddingLeft:6}}>
+              <span style={{fontFamily:'var(--mono)',fontSize:9,color:'rgba(0,0,0,.65)'}}>{((amt/total)*100).toFixed(0)}%</span>
+            </div>
+          </div>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)',width:65,textAlign:'right'}}>${(amt/1000).toFixed(1)}k</div>
+        </div>
+      ))}
+    </div>}
+
+    <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,marginBottom:12}}>RECENT INVOICES</div>
+    <div style={S.tblWrap}>
+      <table style={S.tbl}>
+        <thead><tr style={{background:'var(--bg3)',borderBottom:'1px solid var(--border)'}}>
+          {['Invoice #','Vendor','Date','Items','Total','Status','File',''].map(h=><th key={h} style={S.th}>{h}</th>)}
+        </tr></thead>
+        <tbody>
+          {invoices.slice(0,8).map(inv=>(
+            <tr key={inv.id} style={{borderBottom:'1px solid var(--border)'}}>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:12}}>{inv.invoice_number}</td>
+              <td style={S.td}>{chip('var(--text2)',inv.vendor)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>{inv.invoice_date}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',color:'var(--text2)'}}>{inv.line_items?.length||0}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',color:'var(--accent)'}}>${parseFloat(inv.total||0).toFixed(2)}</td>
+              <td style={S.td}>{statusChip(inv.status)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:inv.fileDataUrl?'var(--green)':'var(--text3)'}}>{inv.fileDataUrl?'📎':'—'}</td>
+              <td style={S.td}>{inv.status==='pending'&&<button onClick={()=>onReview(inv)} style={{...S.btnGhost,fontSize:10}}>Review</button>}</td>
+            </tr>
+          ))}
+          {invoices.length===0&&<tr><td colSpan={8} style={{padding:40,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>No invoices yet — click "+ New Invoice" to get started</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>;
+}
+
+// ─── INVOICES PAGE ─────────────────────────────────────────────────
+function InvoicesPage({invoices,onReview}) {
+  const [fv,setFv]=useState('');const [fs,setFs]=useState('');const [ff,setFf]=useState('');const [ft,setFt]=useState('');
+  const vendors=[...new Set(invoices.map(i=>i.vendor))].sort();
+  let data=[...invoices];
+  if(fv)data=data.filter(i=>i.vendor===fv);
+  if(fs)data=data.filter(i=>i.status===fs);
+  if(ff)data=data.filter(i=>i.invoice_date>=ff);
+  if(ft)data=data.filter(i=>i.invoice_date<=ft);
+  const total=data.reduce((s,i)=>s+(parseFloat(i.total)||0),0);
+
+  return <div>
+    <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+      <select style={{...S.select,fontSize:11}} value={fv} onChange={e=>setFv(e.target.value)}><option value="">All Vendors</option>{vendors.map(v=><option key={v}>{v}</option>)}</select>
+      <select style={{...S.select,fontSize:11}} value={fs} onChange={e=>setFs(e.target.value)}><option value="">All Status</option><option>approved</option><option>pending</option></select>
+      <input type="date" style={{...S.select,fontSize:11}} value={ff} onChange={e=>setFf(e.target.value)}/>
+      <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>to</span>
+      <input type="date" style={{...S.select,fontSize:11}} value={ft} onChange={e=>setFt(e.target.value)}/>
+      <button style={S.btn} onClick={()=>{setFv('');setFs('');setFf('');setFt('');}}>Clear</button>
+      <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',marginLeft:8}}>{data.length} invoice(s) · ${total.toFixed(2)}</span>
+    </div>
+    <div style={S.tblWrap}>
+      <table style={S.tbl}>
+        <thead><tr style={{background:'var(--bg3)',borderBottom:'1px solid var(--border)'}}>
+          {['Invoice #','Vendor','Date','Items','Subtotal','Tax','Total','Status','File',''].map(h=><th key={h} style={S.th}>{h}</th>)}
+        </tr></thead>
+        <tbody>
+          {data.map(inv=>(
+            <tr key={inv.id} style={{borderBottom:'1px solid var(--border)'}}>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:12}}>{inv.invoice_number}</td>
+              <td style={S.td}>{chip('var(--text2)',inv.vendor)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>{inv.invoice_date}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',color:'var(--text2)'}}>{inv.line_items?.length||0}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)'}}>${parseFloat(inv.subtotal||0).toFixed(2)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)'}}>${parseFloat(inv.tax||0).toFixed(2)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',color:'var(--accent)'}}>${parseFloat(inv.total||0).toFixed(2)}</td>
+              <td style={S.td}>{statusChip(inv.status)}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:inv.fileDataUrl?'var(--green)':'var(--text3)'}}>{inv.fileDataUrl?'📎 Yes':'—'}</td>
+              <td style={S.td}>{inv.status==='pending'&&<button onClick={()=>onReview(inv)} style={{...S.btnGhost,fontSize:10}}>Review</button>}</td>
+            </tr>
+          ))}
+          {data.length===0&&<tr><td colSpan={10} style={{padding:30,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>No invoices match filters</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>;
+}
+
+// ─── ITEMS PAGE ────────────────────────────────────────────────────
+function ItemsPage({invoices}) {
+  const [cat,setCat] = useState('');
+  const itemMap = {};
+  invoices.filter(i=>i.status==='approved').forEach(inv=>{
+    (inv.line_items||[]).forEach(li=>{
+      const key=li.canonical||li.name;
+      if(!key)return;
+      if(!itemMap[key])itemMap[key]={name:key,cat:li.category||'Other',vendors:{}};
+      if(li.unit_price&&parseFloat(li.unit_price)>0){
+        if(!itemMap[key].vendors[inv.vendor])itemMap[key].vendors[inv.vendor]=[];
+        itemMap[key].vendors[inv.vendor].push({price:parseFloat(li.unit_price),unit:li.unit||'lb',date:inv.invoice_date});
+      }
+    });
+  });
+  const items=Object.values(itemMap);
+  const cats=[...new Set(items.map(i=>i.cat))].sort();
+  const filtered=cat?items.filter(i=>i.cat===cat):items;
+  const grouped={};
+  filtered.forEach(i=>{if(!grouped[i.cat])grouped[i.cat]=[];grouped[i.cat].push(i);});
+
+  if(!items.length)return <div style={{textAlign:'center',padding:60,color:'var(--text3)'}}><div style={{fontSize:40,marginBottom:12}}>📊</div><div style={{fontFamily:'var(--display)',fontSize:22,letterSpacing:2}}>NO DATA YET</div><div style={{fontFamily:'var(--mono)',fontSize:10,marginTop:8}}>Approve invoices to see price comparisons</div></div>;
+
+  return <div>
+    <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+      <button style={{...S.btn,...(cat===''?{background:'var(--accent)',color:'#000',borderColor:'var(--accent)'}:{})}} onClick={()=>setCat('')}>All</button>
+      {cats.map(c=><button key={c} style={{...S.btn,...(cat===c?{background:'var(--accent)',color:'#000',borderColor:'var(--accent)'}:{})}} onClick={()=>setCat(c)}>{c}</button>)}
+    </div>
+    {Object.entries(grouped).map(([g,gitems])=>(
+      <div key={g} style={{marginBottom:24}}>
+        <div style={{fontFamily:'var(--display)',fontSize:16,letterSpacing:2,color:'var(--text2)',borderBottom:'1px solid var(--border)',paddingBottom:6,marginBottom:10}}>{g} <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>({gitems.length})</span></div>
+        {gitems.map(item=>{
+          const [open,setOpen]=useState(false);
+          const vends=Object.entries(item.vendors);
+          const prices=vends.flatMap(([,ps])=>ps.map(p=>p.price));
+          const best=prices.length?Math.min(...prices):null;
+          return <div key={item.name} style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,marginBottom:8,overflow:'hidden'}}>
+            <div onClick={()=>setOpen(!open)} style={{padding:'10px 14px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',background:open?'var(--bg3)':'var(--bg2)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontFamily:'var(--display)',fontSize:17,letterSpacing:1}}>{item.name}</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{vends.length} vendor{vends.length>1?'s':''}</span>
+              </div>
+              <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                {best&&<span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)'}}>Best: ${best.toFixed(2)}</span>}
+                <span style={{color:'var(--text3)'}}>{open?'▲':'▾'}</span>
+              </div>
+            </div>
+            {open&&<div style={{padding:'10px 14px',borderTop:'1px solid var(--border)'}}>
+              {vends.map(([v,ps])=>{
+                const latest=ps.sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+                const isBest=latest?.price===best;
+                return <div key={v} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid var(--border)'}}>
+                  <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>{v}</span>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontFamily:'var(--mono)',fontSize:13,color:isBest?'var(--green)':'var(--text)',fontWeight:isBest?600:400}}>${latest?.price?.toFixed(2)}/{latest?.unit}{isBest&&<span style={{marginLeft:6,fontSize:10}}> ★ BEST</span>}</span>
+                    {!isBest&&best&&<span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--red)'}}>+${(latest?.price-best).toFixed(2)} vs best</span>}
+                    <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{ps.length} order{ps.length>1?'s':''}</span>
+                  </div>
+                </div>;
+              })}
+            </div>}
+          </div>;
+        })}
+      </div>
+    ))}
+  </div>;
+}
+
+// ─── QUERY PAGE ────────────────────────────────────────────────────
+function QueryPage({invoices}) {
+  const [vendor,setVendor]=useState('');const [from,setFrom]=useState('');const [to,setTo]=useState('');const [status,setStatus]=useState('');const [results,setResults]=useState(null);
+  const vendors=[...new Set(invoices.map(i=>i.vendor))].sort();
+  const run=()=>{
+    let r=[...invoices];
+    if(vendor)r=r.filter(i=>i.vendor===vendor);
+    if(from)r=r.filter(i=>i.invoice_date>=from);
+    if(to)r=r.filter(i=>i.invoice_date<=to);
+    if(status)r=r.filter(i=>i.status===status);
+    setResults(r);
+  };
+  const total=results?.reduce((s,i)=>s+(parseFloat(i.total)||0),0)||0;
+  const vb={};results?.forEach(i=>{vb[i.vendor]=(vb[i.vendor]||0)+(parseFloat(i.total)||0);});
+
+  return <div>
+    <div style={{...S.card,border:'1px solid var(--accent)',marginBottom:20}}>
+      <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,color:'var(--accent)',marginBottom:14}}>CUSTOM QUERY</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:14}}>
+        <div><label style={S.label}>Date From</label><input type="date" style={{...S.select,width:'100%'}} value={from} onChange={e=>setFrom(e.target.value)}/></div>
+        <div><label style={S.label}>Date To</label><input type="date" style={{...S.select,width:'100%'}} value={to} onChange={e=>setTo(e.target.value)}/></div>
+        <div><label style={S.label}>Vendor</label><select style={{...S.select,width:'100%'}} value={vendor} onChange={e=>setVendor(e.target.value)}><option value="">All</option>{vendors.map(v=><option key={v}>{v}</option>)}</select></div>
+        <div><label style={S.label}>Status</label><select style={{...S.select,width:'100%'}} value={status} onChange={e=>setStatus(e.target.value)}><option value="">All</option><option>approved</option><option>pending</option></select></div>
+      </div>
+      <div style={{display:'flex',gap:10}}>
+        <button onClick={run} style={S.btnPrimary}>RUN QUERY</button>
+        <button onClick={()=>{setVendor('');setFrom('');setTo('');setStatus('');setResults(null);}} style={S.btn}>Clear</button>
+      </div>
+    </div>
+    {results&&<>
+      <div style={S.statGrid}>
+        <StatCard label="Total Spend" value={`$${total.toFixed(2)}`}/>
+        <StatCard label="Invoices" value={results.length} accent="var(--green)"/>
+        <StatCard label="Avg Invoice" value={results.length?`$${(total/results.length).toFixed(2)}`:'$0'} accent="var(--blue)"/>
+        <StatCard label="Vendors" value={Object.keys(vb).length} accent="var(--orange)"/>
+      </div>
+      {Object.keys(vb).length>1&&<div style={{...S.card,marginBottom:20}}>
+        <div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,textTransform:'uppercase',marginBottom:10}}>Vendor Breakdown</div>
+        {Object.entries(vb).sort((a,b)=>b[1]-a[1]).map(([v,a])=>(
+          <div key={v} style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)',width:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
+            <div style={{flex:1,height:14,background:'var(--bg3)',borderRadius:2}}><div style={{height:'100%',width:`${(a/total)*100}%`,background:'var(--accent)',borderRadius:2}}/></div>
+            <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text2)',width:60,textAlign:'right'}}>${(a/1000).toFixed(1)}k</span>
+          </div>
+        ))}
+      </div>}
+      <div style={S.tblWrap}>
+        <table style={S.tbl}>
+          <thead><tr style={{background:'var(--bg3)',borderBottom:'1px solid var(--border)'}}>
+            {['Invoice #','Vendor','Date','Total','Status'].map(h=><th key={h} style={S.th}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {results.map(inv=><tr key={inv.id} style={{borderBottom:'1px solid var(--border)'}}>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:12}}>{inv.invoice_number}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>{inv.vendor}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>{inv.invoice_date}</td>
+              <td style={{...S.td,fontFamily:'var(--mono)',color:'var(--accent)'}}>${parseFloat(inv.total||0).toFixed(2)}</td>
+              <td style={S.td}>{statusChip(inv.status)}</td>
+            </tr>)}
+            {results.length===0&&<tr><td colSpan={5} style={{padding:30,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>No results</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </>}
+  </div>;
+}
+
+// ─── SETTINGS PAGE ─────────────────────────────────────────────────
+function SettingsPage({onReset,showToast}) {
+  const [k,setK]=useState(getKey());const [saved,setSaved]=useState(false);
+  const save=()=>{if(!k.startsWith('sk-ant-')){showToast('Invalid key','err');return;}setKey(k.trim());setSaved(true);setTimeout(()=>setSaved(false),2000);showToast('✓ API key saved!');};
+
+  return <div style={{maxWidth:540}}>
+    <div style={{...S.card,marginBottom:12}}>
+      <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,marginBottom:12}}>ANTHROPIC API KEY</div>
+      <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)',lineHeight:1.8,marginBottom:12}}>Stored in this browser only — never in the code.<br/>Get yours at <span style={{color:'var(--accent)'}}>console.anthropic.com → API Keys</span></div>
+      {getKey()&&<div style={{background:'rgba(82,201,122,.1)',border:'1px solid rgba(82,201,122,.3)',borderRadius:4,padding:'8px 12px',fontFamily:'var(--mono)',fontSize:11,color:'var(--green)',marginBottom:10}}>✓ API key active — AI invoice reading enabled</div>}
+      <div style={{display:'flex',gap:8}}>
+        <input type="password" style={{...S.input,fontFamily:'var(--mono)',fontSize:12,flex:1}} value={k} onChange={e=>setK(e.target.value)} placeholder="sk-ant-api03-…"/>
+        <button onClick={save} style={{...S.btnPrimary,fontSize:14,padding:'8px 16px',letterSpacing:1}}>{saved?'SAVED ✓':'SAVE'}</button>
+      </div>
+    </div>
+    <div style={{...S.card,marginBottom:12}}>
+      <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,marginBottom:10}}>APP INFO</div>
+      {[['App','InvoiceIntel'],['Hosted','choeunp4.github.io/invoiceintel'],['Database','Supabase (invoiceintel)'],['AI Model','Claude claude-opus-4-5']].map(([k,v])=>(
+        <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)',fontFamily:'var(--mono)',fontSize:11}}>
+          <span style={{color:'var(--text3)'}}>{k}</span><span style={{color:'var(--text2)'}}>{v}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{background:'var(--bg2)',border:'1px solid var(--red)',borderRadius:6,padding:20}}>
+      <div style={{fontFamily:'var(--display)',fontSize:18,letterSpacing:2,color:'var(--red)',marginBottom:6}}>DANGER ZONE</div>
+      <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)',lineHeight:1.8,marginBottom:12}}>Clears all invoices and data from this session. Cannot be undone.</div>
+      <button onClick={onReset} style={S.btnRed}>RESET ALL DATA</button>
+    </div>
+  </div>;
+}
+
+// ─── APP ───────────────────────────────────────────────────────────
+function App() {
+  const [page,setPage]=useState('dashboard');
+  const [invoices,setInvoices]=useState([]);
+  const [categories,setCategories]=useState([]);
+  const [showUpload,setShowUpload]=useState(false);
+  const [reviewInv,setReviewInv]=useState(null);
+  const [toast,setToast]=useState(null);
+
+  const showToast=(msg,type='')=>setToast({msg,type,id:Date.now()});
+  const addCategory=cat=>setCategories(prev=>prev.includes(cat)?prev:[...prev,cat].sort());
+
+  const pending=invoices.filter(i=>i.status==='pending').length;
+  const pages={dashboard:'DASHBOARD',invoices:'INVOICES',items:'ITEMS & PRICES',query:'QUERY ENGINE',settings:'SETTINGS'};
+
+  const handleSubmit=inv=>{
+    const ni={...inv,id:Date.now().toString(),status:'pending'};
+    setInvoices(prev=>[ni,...prev]);
+    setShowUpload(false);
+    showToast(`Invoice ${inv.invoice_number} submitted for review!`);
+    setPage('dashboard');
+  };
+
+  const handleApprove=inv=>{
+    setInvoices(prev=>prev.map(i=>(i.id===inv.id)?{...inv,status:'approved'}:i));
+    setReviewInv(null);
+    showToast(`✓ Invoice ${inv.invoice_number} approved!`);
+    // Save to Supabase (fire and forget)
+    sb.from('invoices').insert({invoice_number:inv.invoice_number,invoice_date:inv.invoice_date,total:inv.total,status:'approved',notes:inv.notes||null,file_name:inv.fileName||null}).catch(e=>console.log('Supabase:',e));
+  };
+
+  const handleReset=()=>{
+    if(!confirm('Delete ALL data? Cannot be undone.'))return;
+    setInvoices([]);setCategories([]);showToast('All data cleared');setPage('dashboard');
+  };
+
+  return <div style={S.app}>
+    {/* SIDEBAR */}
+    <div style={S.sidebar}>
+      <div style={S.logo}>
+        <div style={S.logoWord}>INVOICEINTEL</div>
+        <div style={S.logoTag}>Food Cost Intelligence</div>
+      </div>
+      <nav style={{flex:1,paddingTop:8,overflowY:'auto'}}>
+        <div style={S.navSec}>Overview</div>
+        <NavItem icon="⬡" label="Dashboard" active={page==='dashboard'} onClick={()=>setPage('dashboard')}/>
+        <NavItem icon="◫" label="Invoices" active={page==='invoices'} badge={pending} onClick={()=>setPage('invoices')}/>
+        <div style={S.navSec}>Analysis</div>
+        <NavItem icon="◉" label="Items & Prices" active={page==='items'} onClick={()=>setPage('items')}/>
+        <NavItem icon="◎" label="Query Engine" active={page==='query'} onClick={()=>setPage('query')}/>
+        <div style={S.navSec}>System</div>
+        <NavItem icon="⚙" label="Settings" active={page==='settings'} onClick={()=>setPage('settings')}/>
+      </nav>
+      <div style={{padding:'12px 14px',borderTop:'1px solid var(--border)'}}>
+        <button onClick={()=>setShowUpload(true)} style={{...S.btnPrimary,width:'100%',fontSize:15}}>+ NEW INVOICE</button>
+        {!getKey()&&<div style={{fontFamily:'var(--mono)',fontSize:9,color:'var(--red)',textAlign:'center',marginTop:6}}>⚑ Add API key in Settings</div>}
+      </div>
+    </div>
+
+    {/* MAIN */}
+    <div style={S.main}>
+      <div style={S.topbar}>
+        <div style={S.pageTitle}>{pages[page]||page.toUpperCase()}</div>
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          {pending>0&&<span style={{background:'rgba(232,197,71,.12)',border:'1px solid var(--accent)',color:'var(--accent)',padding:'5px 12px',borderRadius:4,fontFamily:'var(--mono)',fontSize:11,cursor:'pointer'}} onClick={()=>setPage('invoices')}>⏳ {pending} PENDING</span>}
+          <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{invoices.filter(i=>i.status==='approved').length} invoices · ${invoices.filter(i=>i.status==='approved').reduce((s,i)=>s+(parseFloat(i.total)||0),0).toFixed(2)}</span>
+        </div>
+      </div>
+      <div style={S.content}>
+        {page==='dashboard'&&<Dashboard invoices={invoices} onReview={setReviewInv}/>}
+        {page==='invoices'&&<InvoicesPage invoices={invoices} onReview={setReviewInv}/>}
+        {page==='items'&&<ItemsPage invoices={invoices}/>}
+        {page==='query'&&<QueryPage invoices={invoices}/>}
+        {page==='settings'&&<SettingsPage onReset={handleReset} showToast={showToast}/>}
+      </div>
+    </div>
+
+    {/* MODALS */}
+    {showUpload&&<UploadModal onClose={()=>setShowUpload(false)} onSubmit={handleSubmit} categories={categories} addCategory={addCategory}/>}
+    {reviewInv&&<ReviewModal invoice={reviewInv} onClose={()=>setReviewInv(null)} onApprove={handleApprove} categories={categories} addCategory={addCategory}/>}
+
+    {toast&&<div key={toast.id} style={{position:'fixed',bottom:22,right:22,background:'var(--bg3)',border:'1px solid var(--border2)',borderLeft:`3px solid ${toast.type==='err'?'var(--red)':toast.type==='warn'?'var(--accent)':'var(--green)'}`,borderRadius:4,padding:'10px 16px',fontFamily:'var(--mono)',fontSize:12,zIndex:999,maxWidth:320}} onClick={()=>setToast(null)}>{toast.msg}</div>}
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
