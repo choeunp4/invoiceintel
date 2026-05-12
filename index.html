@@ -73,35 +73,61 @@ async function callAI(base64,mimeType,apiKey,prompt=AI_PROMPT){
 
 function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read failed'));r.readAsDataURL(file);});}
 
-// ─── PDF BLOB HOOK ─────────────────────────────────────────────────
+// ─── PDF UTILITIES ─────────────────────────────────────────────────
+function b64ToBytes(b64){const bin=atob(b64);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);return buf;}
+
+function bytesToB64(bytes){let s='';const CHUNK=8192;for(let i=0;i<bytes.length;i+=CHUNK)s+=String.fromCharCode(...bytes.subarray(i,i+CHUNK));return btoa(s);}
+
+async function uploadToStorage(base64,mimeType,bizId,invId,fileName){
+  try{
+    const blob=new Blob([b64ToBytes(base64)],{type:mimeType});
+    const ext=mimeType.includes('pdf')?'pdf':mimeType.split('/')[1]||'bin';
+    const path=bizId+'/'+invId+'/'+(fileName||'invoice.'+ext);
+    const{error}=await sb.storage.from('invoice-files').upload(path,blob,{contentType:mimeType,upsert:true});
+    if(error)throw error;
+    return path;
+  }catch(e){console.error('Storage upload error:',e.message);return null;}
+}
+
+async function getStorageUrl(path){
+  if(!path)return null;
+  const{data,error}=await sb.storage.from('invoice-files').createSignedUrl(path,3600);
+  if(error){console.error('Signed URL error:',error.message);return null;}
+  return data?.signedUrl||null;
+}
+
+function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read failed'));r.readAsDataURL(file);});}
+
 function usePdfBlobUrl(dataUrl,active){
   const [url,setUrl]=useState(null);
   useEffect(()=>{
     if(!active||!dataUrl)return;
-    try{const b64=dataUrl.split(',')[1];const bin=atob(b64);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);const blob=new Blob([buf],{type:'application/pdf'});const u=URL.createObjectURL(blob);setUrl(u);return()=>URL.revokeObjectURL(u);}
+    try{const bytes=b64ToBytes(dataUrl.split(',')[1]);const blob=new Blob([bytes],{type:'application/pdf'});const u=URL.createObjectURL(blob);setUrl(u);return()=>URL.revokeObjectURL(u);}
     catch(e){console.error('PDF blob:',e);}
   },[dataUrl,active]);
   return url;
 }
 
-function InvoiceViewer({dataUrl,mimeType,fileName,height=500}){
-  const isPDF=(mimeType||'').includes('pdf');
-  const blobUrl=usePdfBlobUrl(dataUrl,isPDF);
-  if(!dataUrl)return <div style={{textAlign:'center',padding:40,color:'var(--text3)',fontFamily:'var(--mono)',fontSize:11}}>No file attached</div>;
+function InvoiceViewer({dataUrl,filePath,mimeType,fileName,height=500}){
+  const [resolvedUrl,setResolvedUrl]=useState(dataUrl||null);
+  useEffect(()=>{
+    if(dataUrl){setResolvedUrl(dataUrl);return;}
+    if(filePath){getStorageUrl(filePath).then(u=>{if(u)setResolvedUrl(u);});}
+  },[dataUrl,filePath]);
+  const isPDF=(mimeType||filePath||'').toLowerCase().includes('pdf');
+  const blobUrl=usePdfBlobUrl(resolvedUrl,isPDF&&resolvedUrl?.startsWith('data:'));
+  const displayUrl=isPDF&&resolvedUrl?.startsWith('data:')?blobUrl:resolvedUrl;
+  if(!resolvedUrl)return <div style={{textAlign:'center',padding:40,color:'var(--text3)',fontFamily:'var(--mono)',fontSize:11}}>{filePath?'Loading...':'No file attached'}</div>;
   if(isPDF){
-    if(!blobUrl)return <div style={{padding:20,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>Loading PDF…</div>;
+    if(!displayUrl)return <div style={{padding:20,textAlign:'center',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>Loading PDF...</div>;
     return <div style={{display:'flex',flexDirection:'column',height,gap:6}}>
-      <iframe src={blobUrl} style={{flex:1,width:'100%',border:'none',borderRadius:4,background:'#fff'}}/>
-      <a href={blobUrl} target="_blank" style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',textAlign:'center'}}>↗ Open in new tab</a>
+      <iframe src={displayUrl} style={{flex:1,width:'100%',border:'none',borderRadius:4,background:'#fff'}}/>
+      <a href={displayUrl} target="_blank" style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',textAlign:'center'}}>Open in new tab</a>
     </div>;
   }
-  return <img src={dataUrl} style={{width:'100%',borderRadius:4,maxHeight:height,objectFit:'contain'}} alt={fileName}/>;
+  return <img src={resolvedUrl} style={{width:'100%',borderRadius:4,maxHeight:height,objectFit:'contain'}} alt={fileName}/>;
 }
 
-// ─── PDF UTILITIES ─────────────────────────────────────────────────
-function b64ToBytes(b64){const bin=atob(b64);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);return buf;}
-
-function bytesToB64(bytes){let s='';const CHUNK=8192;for(let i=0;i<bytes.length;i+=CHUNK)s+=String.fromCharCode(...bytes.subarray(i,i+CHUNK));return btoa(s);}
 
 async function extractPdfPages(srcDoc,pageIdxs){
   const{PDFDocument}=PDFLib;
@@ -645,7 +671,7 @@ function ReviewModal({invoice,onClose,onApprove,categories,addCategory,lookupAli
         <div style={{width:showInv?370:0,minWidth:showInv?370:0,flexShrink:0,borderRight:showInv?'1px solid var(--border)':'none',display:'flex',flexDirection:'column',overflow:'hidden',transition:'all .25s ease'}}>
           {showInv&&<>
             <div style={{padding:'8px 12px',background:'var(--bg3)',borderBottom:'1px solid var(--border)',fontFamily:'var(--mono)',fontSize:9,color:'var(--text3)',letterSpacing:2,flexShrink:0}}>{invoice.fileName||'INVOICE'}</div>
-            <div style={{flex:1,overflow:'auto',padding:10}}><InvoiceViewer dataUrl={invoice.fileDataUrl} mimeType={invoice.fileType} fileName={invoice.fileName} height={580}/></div>
+            <div style={{flex:1,overflow:'auto',padding:10}}><InvoiceViewer dataUrl={invoice.fileDataUrl} filePath={invoice.filePath} mimeType={invoice.fileType} fileName={invoice.fileName} height={580}/></div>
           </>}
         </div>
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -1228,7 +1254,7 @@ function App(){
         showToast('Date range query failed — showing all invoices','warn');
         // Fallback: load without date filter
         const{data:fallback}=await sb.from('invoices').select('*').eq('business_id',bizId).order('invoice_date',{ascending:false}).limit(100);
-        if(fallback)setInvoices(fallback.map(inv=>({...inv,line_items:[]})));
+        if(fallback)setInvoices(fallback.map(inv=>({...inv,line_items:[],filePath:inv.file_path||null,fileDataUrl:null})));
         if(aliasRes.data){const am={};aliasRes.data.forEach(a=>{am[a.raw_name.toLowerCase().trim()]={rawName:a.raw_name,category:a.category,canonical:a.canonical,count:a.use_count,date:a.updated_at?.split('T')[0]};});setAliases(am);}
         if(catRes.data)setCategories(catRes.data.map(c=>c.name));
         return;
@@ -1241,7 +1267,7 @@ function App(){
           if(!liMap[li.invoice_id])liMap[li.invoice_id]=[];
           liMap[li.invoice_id].push({...li,_fromAlias:li.from_alias,_originalCat:li.category,_categoryChanged:false});
         });
-        setInvoices(invRes.data.map(inv=>({...inv,line_items:liMap[inv.id]||[]})));
+        setInvoices(invRes.data.map(inv=>({...inv,line_items:liMap[inv.id]||[],filePath:inv.file_path||null,fileDataUrl:null})));
       } else {
         setInvoices([]);
       }
@@ -1293,6 +1319,13 @@ function App(){
         file_type:inv.fileType||null,pages:inv.pages||null,created_by:user?.id
       }).select().single();
       if(error)throw error;
+      // Upload PDF to storage
+      let filePath=null;
+      if(inv.fileDataUrl){
+        const base64=inv.fileDataUrl.split(',')[1];
+        filePath=await uploadToStorage(base64,inv.fileType||'application/pdf',business.id,saved.id,inv.fileName||'invoice.pdf');
+        if(filePath)await sb.from('invoices').update({file_path:filePath}).eq('id',saved.id);
+      }
       const lis=(inv.line_items||[]).map(l=>({
         invoice_id:saved.id,business_id:business.id,name:l.name,canonical:l.canonical,
         category:l.category,quantity:parseFloat(l.quantity)||0,unit:l.unit||'lb',
@@ -1300,7 +1333,7 @@ function App(){
         from_alias:l._fromAlias||false
       }));
       if(lis.length){const{error:liErr}=await sb.from('line_items').insert(lis);if(liErr)console.error('Line items error:',liErr.message);}
-      setInvoices(prev=>prev.map(i=>i.id===tempId?{...i,id:saved.id}:i));
+      setInvoices(prev=>prev.map(i=>i.id===tempId?{...i,id:saved.id,filePath,fileDataUrl:null}:i));
     }catch(e){
       console.error('Submit error:',e.message);
       showToast('DB sync failed — try refreshing','warn');
@@ -1322,9 +1355,16 @@ function App(){
           file_name:inv.fileName||null,file_type:inv.fileType||null,created_by:user?.id
         }).select().single();
         if(error)throw error;
+        // Upload PDF to storage
+        let filePath=null;
+        if(inv.fileDataUrl){
+          const base64=inv.fileDataUrl.split(',')[1];
+          filePath=await uploadToStorage(base64,inv.fileType||'application/pdf',business.id,saved.id,inv.fileName||'invoice-'+(i+1)+'.pdf');
+          if(filePath)await sb.from('invoices').update({file_path:filePath}).eq('id',saved.id);
+        }
         const lis=(inv.line_items||[]).map(l=>({invoice_id:saved.id,business_id:business.id,name:l.name,canonical:l.canonical,category:l.category,quantity:parseFloat(l.quantity)||0,unit:l.unit||'lb',unit_price:parseFloat(l.unit_price)||0,line_total:parseFloat(l.line_total)||0,from_alias:l._fromAlias||false}));
         if(lis.length)await sb.from('line_items').insert(lis);
-        setInvoices(prev=>prev.map(x=>x.id===tempId?{...x,id:saved.id}:x));
+        setInvoices(prev=>prev.map(x=>x.id===tempId?{...x,id:saved.id,filePath,fileDataUrl:null}:x));
       }catch(e){console.error('Invoice '+inv.invoice_number+' error:',e.message);}
     }
     showToast('All '+invs.length+' invoices saved!');
